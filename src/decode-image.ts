@@ -176,16 +176,27 @@ function getElevations(
   return decodeParsedImage(img.width, img.height, encoding, rgba);
 }
 
+// ★修正箇所　encodingに"gsi"を追加
 export function decodeParsedImage(
   width: number,
   height: number,
-  encoding: Encoding,
+  encoding: string,
   input: Uint8ClampedArray,
 ): DemTile {
-  const decoder: (r: number, g: number, b: number) => number =
-    encoding === "mapbox"
-      ? (r, g, b) => -10000 + (r * 256 * 256 + g * 256 + b) * 0.1
-      : (r, g, b) => r * 256 + g + b / 256 - 32768;
+  const getDecoder = (encoding: string): (r: number, g: number, b: number) => number => {
+      if (encoding === "mapbox") {
+          return (r, g, b) => -10000 + (r * 256 * 256 + g * 256 + b) * 0.1;
+      } else if (encoding === "gsi") {
+          return (r, g, b) => {
+              const gsiX = r * 256 * 256 + g * 256 + b;
+              if (gsiX === 2 ** 23) return 0;
+              return gsiX > 2 ** 23 ? (gsiX - 2 ** 24) * 0.01 : gsiX * 0.01;
+          };
+      } else {
+          return (r, g, b) => r * 256 + g + b / 256 - 32768;
+      }
+  };
+  const decoder = getDecoder(encoding);
   const data = new Float32Array(width * height);
   for (let i = 0; i < input.length; i += 4) {
     data[i / 4] = decoder(input[i], input[i + 1], input[i + 2]);
