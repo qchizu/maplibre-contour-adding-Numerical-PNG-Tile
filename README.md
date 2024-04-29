@@ -2,9 +2,9 @@
 This repository is a fork of the original maplibre-contour project. This version extends the original by adding support for PNG Elevation Tile.
 
 # About PNG Elevation Tile
-PNG Elevation Tile is a format for elevation data designed for use in web browsers, proposed by Geological Survey of Japan, AIST.
+PNG Elevation Tile is a format for elevation data designed for use in web browsers, conceived by Geological Survey of Japan (GSJ), AIST.
 
-To obtain the elevation value h from the RGB values of a PNG elevation tile pixel (R, G, B = 0–255):
+To obtain the elevation value h from the RGB values of a PNG Elevation Tile pixel (R, G, B = 0–255):
 
 x = 2<sup>16</sup>R + 2<sup>8</sup>G + B
 
@@ -21,7 +21,8 @@ For more detailed information, please refer to the following article.
 https://www.jstage.jst.go.jp/article/geoinformatics/26/4/26_155/_article/-char/en
 
 # How to Use
-To use it, import as an ES6 module: 
+To use it, import as an ES6 module:
+
 `npm add git+https://github.com/qchizu/maplibre-contour-adding-PNG-Elevation-Tile.git`
 
 ```js
@@ -31,7 +32,7 @@ or
 ```js
 import mlcontour from '../node_modules/maplibre-contour/dist/index'
 ```
-Then, to use PNG Elevation Tile, set up demSource with MapLibre, specifying encoding: "gsj":
+Then, to use PNG Elevation Tile, set up dem-source with MapLibre, specifying encoding: "gsj":
 
 ```js
 var demSource = new mlcontour.DemSource({
@@ -53,20 +54,20 @@ This project inherits the license of the original maplibre-contour project. See 
 ---
 
 # このフォークについて
-このリポジトリは、maplibre-contourプロジェクトのフォークで、PNG標高タイルが利用できるようになっています。
+このリポジトリは、maplibre-contourプロジェクトのフォークで、PNG標高タイルが利用できるよう改良したものです。
 
 # PNG標高タイルについて
 PNG標高タイルは、標高データをWebブラウザで使用するためのフォーマットで、産業技術総合研究所地質調査総合センター（GSJ）が提案しています。
-PNG標高タイルの画素のRGB値（R, G, B = 0～255）から標高値hを取得する方法：
+PNG標高タイルの画素のRGB値（R, G, B = 0～255）から標高値hを取得する方法
 
 x = 2<sup>16</sup>R + 2<sup>8</sup>G + B
 
-uを標高分解能として:
+標高分解能をuとして:
 - x < 2<sup>23</sup>の場合: h = xu
 - x = 2<sup>23</sup>の場合: h = NA
 - x > 2<sup>23</sup>の場合: h = (x-2<sup>24</sup>)u
 
-無効値は (R, G, B) = (128, 0, 0)。
+※無効値は (R, G, B) = (128, 0, 0)。
 
 標高分解能u = 0.01mの場合、-83,886.07mから+83,886.07mまでの範囲を表すことができ、エベレスト（8,849m）やマリアナ海溝チャレンジャー海淵（-10,920m）などの標高を十分に表現できます。
 
@@ -75,6 +76,7 @@ https://www.jstage.jst.go.jp/article/geoinformatics/26/4/26_155/_article/-char/j
 
 # 使用方法
 以下のようにインポートします。
+
 `npm add git+https://github.com/qchizu/maplibre-contour-adding-PNG-Elevation-Tile.git`
 
 ```js
@@ -85,7 +87,7 @@ import mlcontour from "maplibre-contour";
 import mlcontour from '../node_modules/maplibre-contour/dist/index'
 ```
 
-そして、PNG標高タイルを利用するには、demSourceをMapLibreにセットする際に、encodingを"gsj"と指定します。
+そして、PNG標高タイルを利用するには、dem-sourceをMapLibreにセットする際に、encodingを"gsj"に指定します。
 
 例：
 ```js
@@ -110,13 +112,14 @@ demSource.setupMaplibre(maplibregl);
   - src\decode-image.ts
   encoding: "gsj"を追加
   - package.json
-  Windowsで動作するよう（buildできるよう）、
+  Windowsでbuildできるよう、
     - rm -rfをrimrafに置換
     - rimrafパッケージをインストール
     npm install rimraf --save-dev
     - Windowsのファイルパスで使用できない文字を回避するため変更
     "generate-types": "tsc --emitDeclarationOnly --declaration --outDir dist"
-    この変更に伴い、distディレクトリ内の.test.d.ts、-jest.d.tsで終わるすべてのファイルは手動で削除すること
+    この変更に伴い、distディレクトリ内の.test.d.ts、-jest.d.tsで終わるすべてのファイルはbuild後に手動で削除すること
+    ※ubuntuで動作確認
 
 - 手順
   1. src内のファイルを編集
