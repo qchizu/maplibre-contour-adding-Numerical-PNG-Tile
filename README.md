@@ -5,7 +5,9 @@ This repository is a fork of the original maplibre-contour project. This version
 PNG Elevation Tile is a format for elevation data designed for use in web browsers, proposed by Geological Survey of Japan, AIST.
 
 To obtain the elevation value h from the RGB values of a PNG elevation tile pixel (R, G, B = 0–255):
+
 x = 2<sup>16</sup>R + 2<sup>8</sup>G + B
+
 Using elevation resolution u:
 - if x < 2<sup>23</sup>: h = xu
 - if x = 2<sup>23</sup>: h = NA
@@ -27,7 +29,7 @@ import mlcontour from "maplibre-contour";
 ```
 or
 ```js
-import mlcontour from "maplibre-contour";
+import mlcontour from '../node_modules/maplibre-contour/dist/index'
 ```
 Then, to use PNG Elevation Tile, set up demSource with MapLibre, specifying encoding: "gsj":
 
@@ -54,9 +56,11 @@ This project inherits the license of the original maplibre-contour project. See 
 このリポジトリは、maplibre-contourプロジェクトのフォークで、PNG標高タイルが利用できるようになっています。
 
 # PNG標高タイルについて
-PNG標高タイルは、標高データをWebブラウザで使用するためのフォーマットで、日本の産業技術総合研究所シームレス地質情報研究グループが提案しています。
+PNG標高タイルは、標高データをWebブラウザで使用するためのフォーマットで、産業技術総合研究所地質調査総合センター（GSJ）が提案しています。
 PNG標高タイルの画素のRGB値（R, G, B = 0～255）から標高値hを取得する方法：
+
 x = 2<sup>16</sup>R + 2<sup>8</sup>G + B
+
 uを標高分解能として:
 - x < 2<sup>23</sup>の場合: h = xu
 - x = 2<sup>23</sup>の場合: h = NA
