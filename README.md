@@ -13,10 +13,10 @@ Using elevation resolution u:
 
 Invalid values are represented by (R, G, B) = (128, 0, 0).
 
+In case of u = 0.01m, the range of -83,886.07m to +83,886.07m is represented, adequately covering elevations such as Mount Everest (8,849m) and the Mariana Trench Challenger Deep (-10,920m).
+
 For more detailed information, please refer to the following article.
 https://www.jstage.jst.go.jp/article/geoinformatics/26/4/26_155/_article/-char/en
-
-In case of u = 0.01m, the range of -83,886.07m to +83,886.07m is represented, adequately covering elevations such as Mount Everest (8,849m) and the Mariana Trench Challenger Deep (-10,920m).
 
 # How to Use
 To use it, import as an ES6 module: 
@@ -25,9 +25,13 @@ To use it, import as an ES6 module:
 ```js
 import mlcontour from "maplibre-contour";
 ```
-
+or
+```js
+import mlcontour from "maplibre-contour";
+```
 Then, to use PNG Elevation Tile, set up demSource with MapLibre, specifying encoding: "gsj":
 
+```js
 var demSource = new mlcontour.DemSource({
   url: "https://tiles.gsj.jp/tiles/elev/mixed/{z}/{y}/{x}.png",
   encoding: "gsj", // "mapbox", "terrarium" or "gsj" default="terrarium"
@@ -37,6 +41,7 @@ var demSource = new mlcontour.DemSource({
   timeoutMs: 10_000, // timeout on fetch requests
 });
 demSource.setupMaplibre(maplibregl);
+```
 
 The rest of the usage instructions are the same as the original project.
 
@@ -61,17 +66,25 @@ uを標高分解能として:
 
 標高分解能u = 0.01mの場合、-83,886.07mから+83,886.07mまでの範囲を表すことができ、エベレスト（8,849m）やマリアナ海溝チャレンジャー海淵（-10,920m）などの標高を十分に表現できます。
 
+詳細な情報は以下をご覧ください。
+https://www.jstage.jst.go.jp/article/geoinformatics/26/4/26_155/_article/-char/ja
+
 # 使用方法
-ES6 moduleとして、以下のようにインポートします。
+以下のようにインポートします。
 `npm add git+https://github.com/qchizu/maplibre-contour-adding-PNG-Elevation-Tile.git`
 
 ```js
 import mlcontour from "maplibre-contour";
 ```
+または、
+```js
+import mlcontour from '../node_modules/maplibre-contour/dist/index'
+```
 
 そして、PNG標高タイルを利用するには、demSourceをMapLibreにセットする際に、encodingを"gsj"と指定します。
 
 例：
+```js
 var demSource = new mlcontour.DemSource({
   url: "https://tiles.gsj.jp/tiles/elev/mixed/{z}/{y}/{x}.png",
   encoding: "gsj", // "mapbox", "terrarium" or "gsj" default="terrarium"
@@ -81,11 +94,31 @@ var demSource = new mlcontour.DemSource({
   timeoutMs: 10_000, // timeout on fetch requests
 });
 demSource.setupMaplibre(maplibregl);
+```
 
 他の使用方法は、もとのプロジェクトと同一です。
 
-# License
-This project inherits the license of the original maplibre-contour project. See the LICENSE file for more details.
+# ライセンス
+このプロジェクトは、元のmaplibre-contourプロジェクトのライセンスを継承します。詳細はLICENSEファイルを参照してください。
+
+# メモ - Memo (Japanese Only)
+- 変更点
+  - src\decode-image.ts
+  encoding: "gsj"を追加
+  - package.json
+  Windowsで動作するよう（buildできるよう）、
+    - rm -rfをrimrafに置換
+    - rimrafパッケージをインストール
+    npm install rimraf --save-dev
+    - Windowsのファイルパスで使用できない文字を回避するため変更
+    "generate-types": "tsc --emitDeclarationOnly --declaration --outDir dist"
+    この変更に伴い、distディレクトリ内の.test.d.ts、-jest.d.tsで終わるすべてのファイルは手動で削除すること
+
+- 手順
+  1. src内のファイルを編集
+  2. npm run build
+  3. distディレクトリ内の.test.d.ts、-jest.d.tsで終わるすべてのファイルを手動で削除
+  4. GitHubに追加
 
 ---
 # maplibre-contour
