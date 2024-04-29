@@ -1,3 +1,93 @@
+# About This Fork
+This repository is a fork of the original maplibre-contour project. This version extends the original by adding support for PNG Elevation Tile.
+
+# About PNG Elevation Tile
+PNG Elevation Tile is a format for elevation data designed for use in web browsers, proposed by Geological Survey of Japan, AIST.
+
+To obtain the elevation value h from the RGB values of a PNG elevation tile pixel (R, G, B = 0–255):
+x = 2<sup>16</sup>R + 2<sup>8</sup>G + B
+Using elevation resolution u:
+- if x < 2<sup>23</sup>: h = xu
+- if x = 2<sup>23</sup>: h = NA
+- if x > 2<sup>23</sup>: h = (x-2<sup>24</sup>)u
+
+Invalid values are represented by (R, G, B) = (128, 0, 0).
+
+For more detailed information, please refer to the following article.
+https://www.jstage.jst.go.jp/article/geoinformatics/26/4/26_155/_article/-char/en
+
+In case of u = 0.01m, the range of -83,886.07m to +83,886.07m is represented, adequately covering elevations such as Mount Everest (8,849m) and the Mariana Trench Challenger Deep (-10,920m).
+
+# How to Use
+To use it, import as an ES6 module: 
+`npm add git+https://github.com/qchizu/maplibre-contour-adding-PNG-Elevation-Tile.git`
+
+```js
+import mlcontour from "maplibre-contour";
+```
+
+Then, to use PNG Elevation Tile, set up demSource with MapLibre, specifying encoding: "gsj":
+
+var demSource = new mlcontour.DemSource({
+  url: "https://tiles.gsj.jp/tiles/elev/mixed/{z}/{y}/{x}.png",
+  encoding: "gsj", // "mapbox", "terrarium" or "gsj" default="terrarium"
+  maxzoom: 13,
+  worker: true, // offload isoline computation to a web worker to reduce jank
+  cacheSize: 100, // number of most-recent tiles to cache
+  timeoutMs: 10_000, // timeout on fetch requests
+});
+demSource.setupMaplibre(maplibregl);
+
+The rest of the usage instructions are the same as the original project.
+
+# License
+This project inherits the license of the original maplibre-contour project. See the LICENSE file for more details.
+
+---
+
+# このフォークについて
+このリポジトリは、maplibre-contourプロジェクトのフォークで、PNG標高タイルが利用できるようになっています。
+
+# PNG標高タイルについて
+PNG標高タイルは、標高データをWebブラウザで使用するためのフォーマットで、日本の産業技術総合研究所シームレス地質情報研究グループが提案しています。
+PNG標高タイルの画素のRGB値（R, G, B = 0～255）から標高値hを取得する方法：
+x = 2<sup>16</sup>R + 2<sup>8</sup>G + B
+uを標高分解能として:
+- x < 2<sup>23</sup>の場合: h = xu
+- x = 2<sup>23</sup>の場合: h = NA
+- x > 2<sup>23</sup>の場合: h = (x-2<sup>24</sup>)u
+
+無効値は (R, G, B) = (128, 0, 0)。
+
+標高分解能u = 0.01mの場合、-83,886.07mから+83,886.07mまでの範囲を表すことができ、エベレスト（8,849m）やマリアナ海溝チャレンジャー海淵（-10,920m）などの標高を十分に表現できます。
+
+# 使用方法
+ES6 moduleとして、以下のようにインポートします。
+`npm add git+https://github.com/qchizu/maplibre-contour-adding-PNG-Elevation-Tile.git`
+
+```js
+import mlcontour from "maplibre-contour";
+```
+
+そして、PNG標高タイルを利用するには、demSourceをMapLibreにセットする際に、encodingを"gsj"と指定します。
+
+例：
+var demSource = new mlcontour.DemSource({
+  url: "https://tiles.gsj.jp/tiles/elev/mixed/{z}/{y}/{x}.png",
+  encoding: "gsj", // "mapbox", "terrarium" or "gsj" default="terrarium"
+  maxzoom: 13,
+  worker: true, // offload isoline computation to a web worker to reduce jank
+  cacheSize: 100, // number of most-recent tiles to cache
+  timeoutMs: 10_000, // timeout on fetch requests
+});
+demSource.setupMaplibre(maplibregl);
+
+他の使用方法は、もとのプロジェクトと同一です。
+
+# License
+This project inherits the license of the original maplibre-contour project. See the LICENSE file for more details.
+
+---
 # maplibre-contour
 
 maplibre-contour is a plugin to render contour lines in [MapLibre GL JS](https://github.com/maplibre/maplibre-gl-js) from `raster-dem` sources that powers the terrain mode for [onthegomap.com](https://onthegomap.com).

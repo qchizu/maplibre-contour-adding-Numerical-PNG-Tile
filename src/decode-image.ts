@@ -176,7 +176,7 @@ function getElevations(
   return decodeParsedImage(img.width, img.height, encoding, rgba);
 }
 
-// ★修正箇所　encodingに"gsi"を追加
+// ★修正箇所　encodingに"gsj"を追加
 export function decodeParsedImage(
   width: number,
   height: number,
@@ -186,11 +186,11 @@ export function decodeParsedImage(
   const getDecoder = (encoding: string): (r: number, g: number, b: number) => number => {
       if (encoding === "mapbox") {
           return (r, g, b) => -10000 + (r * 256 * 256 + g * 256 + b) * 0.1;
-      } else if (encoding === "gsi") {
+      } else if (encoding === "gsj") {
           return (r, g, b) => {
-              const gsiX = r * 256 * 256 + g * 256 + b;
-              if (gsiX === 2 ** 23) return 0;
-              return gsiX > 2 ** 23 ? (gsiX - 2 ** 24) * 0.01 : gsiX * 0.01;
+              const gsjX = r * 256 * 256 + g * 256 + b;
+              if (gsjX === 2 ** 23) return 0;
+              return gsjX > 2 ** 23 ? (gsjX - 2 ** 24) * 0.01 : gsjX * 0.01;
           };
       } else {
           return (r, g, b) => r * 256 + g + b / 256 - 32768;
