@@ -57,7 +57,8 @@ This project inherits the license of the original maplibre-contour project. See 
 このリポジトリは、maplibre-contourプロジェクトのフォークで、PNG標高タイルが利用できるよう改良したものです。
 
 # PNG標高タイルについて
-PNG標高タイルは、標高データをWebブラウザで使用するためのフォーマットで、産業技術総合研究所地質調査総合センター（GSJ）が提案しています。
+PNG標高タイルは、標高データをWebブラウザで使用するためのフォーマットで、産業技術総合研究所地質調査総合センター（GSJ）が考案したものです。
+
 PNG標高タイルの画素のRGB値（R, G, B = 0～255）から標高値hを取得する方法
 
 x = 2<sup>16</sup>R + 2<sup>8</sup>G + B
