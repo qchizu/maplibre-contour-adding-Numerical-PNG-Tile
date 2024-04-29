@@ -16,7 +16,7 @@
     "build": "rimraf dist && rollup -c && npm run generate-types && tsc --project tsconfig.dist.json",
     "test-build-v3": "cd test-project-maplibre-3 && rimraf node_modules && rimraf package-lock.json && npm i && npm test",
     "test-build": "cd test-project && rimraf node_modules && rimraf package-lock.json && npm i && npm test",
-    "generate-types": "tsc --emitDeclarationOnly --declaration --outDir dist && rimraf dist/*{.t,-j}est.d.ts",
+    "generate-types": "tsc --emitDeclarationOnly --declaration --outDir dist",
     "jest": "jest",
     "jest:watch": "jest --watch",
     "test": "run-p typecheck lint jest checkformat",
