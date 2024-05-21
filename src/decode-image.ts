@@ -176,7 +176,7 @@ function getElevations(
   return decodeParsedImage(img.width, img.height, encoding, rgba);
 }
 
-// ★修正箇所　encodingに"gsj"を追加
+// ★修正箇所　encodingに"numpng"を追加
 export function decodeParsedImage(
   width: number,
   height: number,
@@ -186,11 +186,11 @@ export function decodeParsedImage(
   const getDecoder = (encoding: string): (r: number, g: number, b: number) => number => {
       if (encoding === "mapbox") {
           return (r, g, b) => -10000 + (r * 256 * 256 + g * 256 + b) * 0.1;
-      } else if (encoding === "gsj") {
+      } else if (encoding === "numpng") {
           return (r, g, b) => {
-              const gsjX = r * 256 * 256 + g * 256 + b;
-              if (gsjX === 2 ** 23) return 0;
-              return gsjX > 2 ** 23 ? (gsjX - 2 ** 24) * 0.01 : gsjX * 0.01;
+              const numpngX = r * 256 * 256 + g * 256 + b;
+              if (numpngX === 2 ** 23) return 0;
+              return numpngX > 2 ** 23 ? (numpngX - 2 ** 24) * 0.01 : numpngX * 0.01;
           };
       } else {
           return (r, g, b) => r * 256 + g + b / 256 - 32768;

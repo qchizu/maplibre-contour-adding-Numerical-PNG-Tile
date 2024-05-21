@@ -1,10 +1,10 @@
 # About This Fork
-This repository is a fork of the original maplibre-contour project. This version extends the original by adding support for PNG Elevation Tile.
+This repository is a fork of the original maplibre-contour project. This version extends the original by adding support for Numerical PNG Tile.
 
-# About PNG Elevation Tile
-PNG Elevation Tile is a format for elevation data designed for use in web browsers, conceived by Geological Survey of Japan (GSJ), AIST.
+# About Numerical PNG Tile
+Numerical PNG Tile is a format for various types of data, including elevation data, designed for use in web browsers, conceived by the Geological Survey of Japan (GSJ), AIST.
 
-To obtain the elevation value h from the RGB values of a PNG Elevation Tile pixel (R, G, B = 0–255):
+To obtain the elevation value h from the RGB values of a Numerical PNG Tile pixel (R, G, B = 0–255):
 
 x = 2<sup>16</sup>R + 2<sup>8</sup>G + B
 
@@ -32,12 +32,12 @@ or
 ```js
 import mlcontour from '../node_modules/maplibre-contour/dist/index'
 ```
-Then, to use PNG Elevation Tile, set up dem-source with MapLibre, specifying encoding: "gsj":
+Then, to use Numerical PNG Tile, set up dem-source with MapLibre, specifying encoding: "numpng":
 
 ```js
 var demSource = new mlcontour.DemSource({
   url: "https://tiles.gsj.jp/tiles/elev/mixed/{z}/{y}/{x}.png",
-  encoding: "gsj", // "mapbox", "terrarium" or "gsj" default="terrarium"
+  encoding: "numpng", // "mapbox", "terrarium" or "numpng" default="terrarium"
   maxzoom: 13,
   worker: true, // offload isoline computation to a web worker to reduce jank
   cacheSize: 100, // number of most-recent tiles to cache
@@ -54,12 +54,12 @@ This project inherits the license of the original maplibre-contour project. See 
 ---
 
 # このフォークについて
-このリポジトリは、maplibre-contourプロジェクトのフォークで、PNG標高タイルが利用できるよう改良したものです。
+このリポジトリは、maplibre-contourプロジェクトのフォークで、標高データを記録した数値PNGタイルが利用できるよう改良したものです。
 
-# PNG標高タイルについて
-PNG標高タイルは、標高データをWebブラウザで使用するためのフォーマットで、産業技術総合研究所地質調査総合センター（GSJ）が考案したものです。
+# 数値PNGタイルについて
+数値PNGタイルは、標高データを始めとした各種データをWebブラウザで使用するためのフォーマットで、産業技術総合研究所地質調査総合センター（GSJ）が考案したものです。
 
-PNG標高タイルの画素のRGB値（R, G, B = 0～255）から標高値hを取得する方法
+数値PNGタイルの画素のRGB値（R, G, B = 0～255）から標高値hを取得する方法
 
 x = 2<sup>16</sup>R + 2<sup>8</sup>G + B
 
@@ -88,13 +88,13 @@ import mlcontour from "maplibre-contour";
 import mlcontour from '../node_modules/maplibre-contour/dist/index'
 ```
 
-そして、PNG標高タイルを利用するには、dem-sourceをMapLibreにセットする際に、encodingを"gsj"に指定します。
+そして、数値PNGタイルを利用するには、dem-sourceをMapLibreにセットする際に、encodingを"numpng"に指定します。
 
 例：
 ```js
 var demSource = new mlcontour.DemSource({
   url: "https://tiles.gsj.jp/tiles/elev/mixed/{z}/{y}/{x}.png",
-  encoding: "gsj", // "mapbox", "terrarium" or "gsj" default="terrarium"
+  encoding: "numpng", // "mapbox", "terrarium" or "numpng" default="terrarium"
   maxzoom: 13,
   worker: true, // offload isoline computation to a web worker to reduce jank
   cacheSize: 100, // number of most-recent tiles to cache
@@ -111,7 +111,7 @@ demSource.setupMaplibre(maplibregl);
 # メモ - Memo (Japanese Only)
 - 変更点
   - src\decode-image.ts
-  encoding: "gsj"を追加
+  encoding: "numpng"を追加
   - package.json
   Windowsでbuildできるよう、
     - rm -rfをrimrafに置換
