@@ -1,6 +1,6 @@
-import { LocalDemManager } from "./dem-manager";
+import { LocalDemManager } from "./local-dem-manager";
 import { Timer } from "./performance";
-import {
+import type {
   ContourTile,
   FetchResponse,
   IndividualContourTileOptions,
@@ -19,15 +19,8 @@ export default class WorkerDispatch {
   /** There is one worker shared between all managers in the main thread using the plugin, so need to store each of their configurations. */
   managers: { [id: number]: LocalDemManager } = {};
 
-  // eslint-disable-next-line no-unused-vars
   init = (message: InitMessage, _: AbortController): Promise<void> => {
-    this.managers[message.managerId] = new LocalDemManager(
-      message.demUrlPattern,
-      message.cacheSize,
-      message.encoding,
-      message.maxzoom,
-      message.timeoutMs,
-    );
+    this.managers[message.managerId] = new LocalDemManager(message);
     return Promise.resolve();
   };
 

@@ -3,9 +3,10 @@ import Actor from "./actor";
 import WorkerDispatch from "./worker-dispatch";
 import { DemSource } from "./dem-source";
 import { MainThreadDispatch } from "./remote-dem-manager";
-import { DemTile, Timing } from "./types";
+import type { DemTile, Timing } from "./types";
 import { VectorTile } from "@mapbox/vector-tile";
 import Pbf from "pbf";
+import { LocalDemManager } from "./local-dem-manager";
 
 beforeEach(() => {
   jest.useFakeTimers({ now: 0, doNotFake: ["performance"] });
@@ -16,7 +17,7 @@ afterEach(() => {
 
 jest.mock("./decode-image", () => (): Promise<DemTile> => {
   jest.advanceTimersByTime(1);
-  // eslint-disable-next-line global-require
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
   const flattenDeep = require("lodash/flattenDeep");
   const value: DemTile = {
     data: Float32Array.from(
@@ -281,4 +282,29 @@ test("decode image from worker", async () => {
     height: 4,
     data: expectedElevations,
   });
+});
+
+test("fake decode image and fetch tile", async () => {
+  const getTileSpy = jest.fn().mockReturnValue(Promise.resolve({}));
+  const demManager = new LocalDemManager({
+    demUrlPattern: "https://example/{z}/{x}/{y}.png",
+    cacheSize: 100,
+    encoding: "terrarium",
+    maxzoom: 11,
+    timeoutMs: 10000,
+    decodeImage: async () => ({
+      width: 4,
+      height: 4,
+      data: expectedElevations,
+    }),
+    getTile: getTileSpy,
+  });
+  const demTile = await demManager.fetchAndParseTile(
+    1,
+    2,
+    3,
+    new AbortController(),
+  );
+  expect(demTile.data).toEqual(expectedElevations);
+  expect(getTileSpy.mock.calls[0][0]).toBe("https://example/1/2/3.png");
 });

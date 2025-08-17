@@ -1,3 +1,7 @@
+import type Actor from "./actor";
+import type { Timer } from "./performance";
+import type WorkerDispatch from "./worker-dispatch";
+
 /** Scheme used to map pixel rgb values elevations. */
 export type Encoding = "terrarium" | "mapbox";
 export interface IsTransferrable {
@@ -77,21 +81,12 @@ export interface Image {
   data: Uint8Array;
 }
 
-export interface InitMessage {
-  managerId: number;
-  demUrlPattern: string;
-  cacheSize: number;
-  encoding: Encoding;
-  maxzoom: number;
-  timeoutMs: number;
-}
-
 export type TimingCategory = "main" | "worker" | "fetch" | "decode" | "isoline";
 
 /** Performance profile for a tile request */
 export interface Timing {
   /** The "virtual" tile url using the protocol ID registered with maplibre */
-  url: String;
+  url: string;
   /** Timing origin that all marks are relative to. */
   origin: number;
   /** Overall duration of the request */
@@ -114,3 +109,63 @@ export interface Timing {
   /** If the tile failed with an error */
   error?: boolean;
 }
+
+/**
+ * Holds cached tile state, and exposes `fetchContourTile` which fetches the necessary
+ * tiles and returns an encoded contour vector tiles.
+ */
+export interface DemManager {
+  loaded: Promise<any>;
+  fetchTile(
+    z: number,
+    x: number,
+    y: number,
+    abortController: AbortController,
+    timer?: Timer,
+  ): Promise<FetchResponse>;
+  fetchAndParseTile(
+    z: number,
+    x: number,
+    y: number,
+    abortController: AbortController,
+    timer?: Timer,
+  ): Promise<DemTile>;
+  fetchContourTile(
+    z: number,
+    x: number,
+    y: number,
+    options: IndividualContourTileOptions,
+    abortController: AbortController,
+    timer?: Timer,
+  ): Promise<ContourTile>;
+}
+
+export type GetTileFunction = (
+  url: string,
+  abortController: AbortController,
+) => Promise<FetchResponse>;
+
+export type DecodeImageFunction = (
+  blob: Blob,
+  encoding: Encoding,
+  abortController: AbortController,
+) => Promise<DemTile>;
+
+export type DemManagerRequiredInitializationParameters = {
+  demUrlPattern: string;
+  cacheSize: number;
+  encoding: Encoding;
+  maxzoom: number;
+  timeoutMs: number;
+};
+
+export type DemManagerInitizlizationParameters =
+  DemManagerRequiredInitializationParameters & {
+    decodeImage?: DecodeImageFunction;
+    getTile?: GetTileFunction;
+    actor?: Actor<WorkerDispatch>;
+  };
+
+export type InitMessage = DemManagerRequiredInitializationParameters & {
+  managerId: number;
+};

@@ -1,5 +1,5 @@
 import { Timer } from "./performance";
-import { IsTransferrable, Timing } from "./types";
+import type { IsTransferrable, Timing } from "./types";
 import { onAbort, withTimeout } from "./utils";
 
 let id = 0;
@@ -66,6 +66,7 @@ export default class Actor<T> {
         }
       } else if (message.type === "request") {
         const timer = new Timer("worker");
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-function-type
         const handler: Function = (dispatcher as any)[message.name];
         const abortController = new AbortController();
         const request = handler.apply(handler, [
