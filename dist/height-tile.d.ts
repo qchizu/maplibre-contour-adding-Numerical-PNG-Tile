@@ -1,4 +1,4 @@
-import { DemTile } from "./types";
+import type { DemTile } from "./types";
 /** A tile containing elevation values aligned to a grid. */
 export declare class HeightTile {
     get: (x: number, y: number) => number;

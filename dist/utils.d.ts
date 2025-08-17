@@ -1,4 +1,4 @@
-import { ContourTile, DemTile, GlobalContourTileOptions, IndividualContourTileOptions, TransferrableContourTile, TransferrableDemTile } from "./types";
+import type { ContourTile, DemTile, GlobalContourTileOptions, IndividualContourTileOptions, TransferrableContourTile, TransferrableDemTile } from "./types";
 export declare function encodeOptions({ thresholds, ...rest }: GlobalContourTileOptions): string;
 export declare function decodeOptions(options: string): GlobalContourTileOptions;
 export declare function encodeIndividualOptions(options: IndividualContourTileOptions): string;

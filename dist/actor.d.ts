@@ -1,5 +1,5 @@
 import { Timer } from "./performance";
-import { Timing } from "./types";
+import type { Timing } from "./types";
 interface Cancel {
     type: "cancel";
     id: number;

@@ -3,7 +3,7 @@ import type { Timer } from "./performance";
 import type WorkerDispatch from "./worker-dispatch";
 
 /** Scheme used to map pixel rgb values elevations. */
-export type Encoding = "terrarium" | "mapbox";
+export type Encoding = "terrarium" | "mapbox" | "numpng";
 export interface IsTransferrable {
   transferrables: Transferable[];
 }

@@ -8,9 +8,8 @@ class WorkerDispatch {
     constructor() {
         /** There is one worker shared between all managers in the main thread using the plugin, so need to store each of their configurations. */
         this.managers = {};
-        // eslint-disable-next-line no-unused-vars
         this.init = (message, _) => {
-            this.managers[message.managerId] = new actor.L(message.demUrlPattern, message.cacheSize, message.encoding, message.maxzoom, message.timeoutMs);
+            this.managers[message.managerId] = new actor.L(message);
             return Promise.resolve();
         };
         this.fetchTile = (managerId, z, x, y, abortController, timer) => {

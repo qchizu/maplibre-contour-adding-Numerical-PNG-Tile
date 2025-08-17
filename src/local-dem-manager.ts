@@ -182,21 +182,31 @@ export class LocalDemManager implements DemManager {
       key,
       async (_, childAbortController) => {
         const max = 1 << z;
-        const neighborPromises: (Promise<HeightTile> | undefined)[] = [];
+        const neighborPromises: (Promise<HeightTile | undefined> | undefined)[] = [];
         for (let iy = y - 1; iy <= y + 1; iy++) {
           for (let ix = x - 1; ix <= x + 1; ix++) {
-            neighborPromises.push(
-              iy < 0 || iy >= max
-                ? undefined
-                : this.fetchDem(
-                    z,
-                    (ix + max) % max,
-                    iy,
-                    options,
-                    childAbortController,
-                    timer,
-                  ),
-            );
+            if (iy < 0 || iy >= max) {
+              neighborPromises.push(undefined);
+            } else {
+              const isCenterTile = ix === x && iy === y;
+              neighborPromises.push(
+                this.fetchDem(
+                  z,
+                  (ix + max) % max,
+                  iy,
+                  options,
+                  childAbortController,
+                  timer,
+                ).catch((error) => {
+                  // 中央タイルの404エラーの場合は再throw（描画中止）
+                  if (isCenterTile) {
+                    throw error;
+                  }
+                  // 周辺タイルの404エラーの場合はundefinedを返す（描画継続）
+                  return undefined;
+                })
+              );
+            }
           }
         }
         const neighbors = await Promise.all(neighborPromises);

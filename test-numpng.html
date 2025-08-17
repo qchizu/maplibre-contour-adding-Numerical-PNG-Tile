@@ -1,0 +1,190 @@
+<!doctype html>
+<html lang="ja">
+  <head>
+    <meta charset="utf-8" />
+    <title>数値PNGタイル テスト - 地理院地質調査総合センター</title>
+    <meta
+      name="viewport"
+      content="initial-scale=1,maximum-scale=1,user-scalable=no"
+    />
+    <script src="https://unpkg.com/maplibre-gl@4.6.0/dist/maplibre-gl.js"></script>
+    <script src="./dist/index.min.js"></script>
+    <link
+      href="https://unpkg.com/maplibre-gl@4.6.0/dist/maplibre-gl.css"
+      rel="stylesheet"
+    />
+    <style>
+      body {
+        margin: 0;
+        padding: 0;
+        font-family: sans-serif;
+      }
+      #map {
+        position: absolute;
+        top: 0;
+        bottom: 0;
+        width: 100%;
+      }
+      .info {
+        position: absolute;
+        top: 10px;
+        left: 10px;
+        background: rgba(255, 255, 255, 0.9);
+        padding: 10px;
+        border-radius: 5px;
+        box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+        z-index: 1000;
+        max-width: 300px;
+      }
+      .info h3 {
+        margin: 0 0 10px 0;
+        color: #333;
+      }
+      .info p {
+        margin: 0;
+        font-size: 12px;
+        color: #666;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="info">
+      <h3>数値PNGタイル テスト</h3>
+      <p>データソース: 産総研地質調査総合センター<br>
+      エンコーディング: numpng<br>
+      等高線: メートル単位</p>
+    </div>
+    <div id="map"></div>
+    <script>
+      var demSource = new mlcontour.DemSource({
+        url: "https://tiles.gsj.jp/tiles/elev/land/{z}/{y}/{x}.png",
+        encoding: "numpng",
+        maxzoom: 13,
+        worker: true,
+        cacheSize: 100,
+        timeoutMs: 10_000,
+      });
+
+      // calls maplibregl.addProtocol for the shared cache and contour protocols
+      demSource.setupMaplibre(maplibregl);
+
+      var map = new maplibregl.Map({
+        container: "map",
+        zoom: 10,
+        center: [138.7309, 35.3628], // 富士山周辺
+        hash: true,
+        style: {
+          version: 8,
+          glyphs: "https://demotiles.maplibre.org/font/{fontstack}/{range}.pbf",
+          sources: {
+            osm: {
+              type: "raster",
+              tiles: ["https://tile.openstreetmap.org/{z}/{x}/{y}.png"],
+              tileSize: 256,
+              attribution: "© OpenStreetMap contributors",
+            },
+            contours: {
+              type: "vector",
+              tiles: [
+                demSource.contourProtocolUrl({
+                  // メートル単位
+                  multiplier: 1,
+                  thresholds: {
+                    // zoom: [minor, major]
+                    8: [500, 1000],
+                    9: [200, 1000],
+                    10: [100, 500],
+                    11: [50, 200],
+                    12: [20, 100],
+                    13: [10, 50],
+                    14: [5, 20],
+                    15: [2, 10],
+                  },
+                  elevationKey: "ele",
+                  levelKey: "level",
+                  contourLayer: "contours",
+                }),
+              ],
+              maxzoom: 16,
+            },
+          },
+          layers: [
+            {
+              id: "osm",
+              type: "raster",
+              source: "osm",
+              paint: {
+                "raster-opacity": 0.3,
+              },
+            },
+            {
+              id: "contours",
+              type: "line",
+              source: "contours",
+              "source-layer": "contours",
+              paint: {
+                "line-color": [
+                  "case",
+                  [">", ["get", "level"], 0],
+                  "#8B4513", // 主等高線（茶色）
+                  "#CD853F"  // 補助等高線（薄茶色）
+                ],
+                "line-width": [
+                  "case",
+                  [">", ["get", "level"], 0],
+                  1.5, // 主等高線
+                  0.8  // 補助等高線
+                ],
+              },
+              layout: {
+                "line-join": "round",
+                "line-cap": "round",
+              },
+            },
+            {
+              id: "contour-text",
+              type: "symbol",
+              source: "contours",
+              "source-layer": "contours",
+              filter: [">", ["get", "level"], 0],
+              paint: {
+                "text-halo-color": "rgba(255,255,255,0.8)",
+                "text-halo-width": 2,
+                "text-color": "#5D4037",
+              },
+              layout: {
+                "symbol-placement": "line",
+                "text-anchor": "center",
+                "text-size": [
+                  "interpolate",
+                  ["linear"],
+                  ["zoom"],
+                  10, 8,
+                  15, 12
+                ],
+                "text-field": [
+                  "concat",
+                  ["number-format", ["get", "ele"], {}],
+                  "m",
+                ],
+                "text-font": ["Noto Sans Bold"],
+                "text-rotation-alignment": "map",
+                "text-pitch-alignment": "viewport",
+              },
+            },
+          ],
+        },
+      });
+
+      // エラーハンドリング
+      map.on('error', function(e) {
+        console.error('Map error:', e);
+      });
+
+      // 読み込み完了時の処理
+      map.on('load', function() {
+        console.log('Map loaded successfully with numpng encoding');
+      });
+    </script>
+  </body>
+</html>

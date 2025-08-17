@@ -1,4 +1,4 @@
-import { Timing, TimingCategory } from "./types";
+import type { Timing, TimingCategory } from "./types";
 export declare const perf: Performance | undefined;
 export declare const timeOrigin: number;
 export declare function getResourceTiming(url: string): PerformanceResourceTiming[];

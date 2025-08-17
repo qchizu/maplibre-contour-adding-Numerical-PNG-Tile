@@ -1,4 +1,4 @@
-import { DemTile, Encoding } from "./types";
+import type { DemTile, Encoding } from "./types";
 declare const defaultDecoder: (blob: Blob, encoding: Encoding, abortController: AbortController) => Promise<DemTile>;
 export default defaultDecoder;
 export declare function decodeParsedImage(width: number, height: number, encoding: string, input: Uint8ClampedArray): DemTile;

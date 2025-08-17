@@ -114,7 +114,7 @@ export class DemSource {
     cacheSize?: number;
     /** Prefix for the maplibre protocol */
     id?: string;
-    encoding?: "terrarium" | "mapbox";
+    encoding?: "terrarium" | "mapbox" | "numpng";
     /** Maximum zoom of tiles contained in the source */
     maxzoom: number;
     timeoutMs?: number;

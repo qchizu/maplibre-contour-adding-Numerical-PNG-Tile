@@ -10,10 +10,12 @@ x = 2<sup>16</sup>R + 2<sup>8</sup>G + B
 
 Using elevation resolution u:
 - if x < 2<sup>23</sup>: h = xu
-- if x = 2<sup>23</sup>: h = NA
-- if x > 2<sup>23</sup>: h = (x-2<sup>24</sup>)u
+- if x >= 2<sup>23</sup>: h = (x-2<sup>24</sup>)u
 
-Invalid values are represented by (R, G, B) = (128, 0, 0).
+Invalid values are represented by:
+- Alpha channel = 0 - transparent pixels (RGBA support)
+※ x = 2<sup>23</sup> (i.e., (R, G, B) = (128, 0, 0)) may also be used as an invalid value in some cases, so this case is also handled as an invalid value in our implementation.
+※ All invalid values are processed as NaN.
 
 In case of u = 0.01m, the range of -83,886.07m to +83,886.07m is represented, adequately covering elevations such as Mount Everest (8,849m) and the Mariana Trench Challenger Deep (-10,920m).
 
@@ -48,6 +50,14 @@ demSource.setupMaplibre(maplibregl);
 
 The rest of the usage instructions are the same as the original project.
 
+## Testing Numerical PNG Tiles
+A test page for verifying Numerical PNG Tile functionality is included:
+
+**test-numpng.html** - Demo page using Numerical PNG tiles from GSJ, AIST
+- Data source: https://tiles.gsj.jp/tiles/elev/land/{z}/{y}/{x}.png
+- Displays contour lines around Mt. Fuji area
+- After building, open test-numpng.html in your browser to test the functionality
+
 # License
 This project inherits the license of the original maplibre-contour project. See the LICENSE file for more details.
 
@@ -65,10 +75,12 @@ x = 2<sup>16</sup>R + 2<sup>8</sup>G + B
 
 標高分解能をuとして:
 - x < 2<sup>23</sup>の場合: h = xu
-- x = 2<sup>23</sup>の場合: h = NA
-- x > 2<sup>23</sup>の場合: h = (x-2<sup>24</sup>)u
+- x >= 2<sup>23</sup>の場合: h = (x-2<sup>24</sup>)u
 
-※無効値は (R, G, B) = (128, 0, 0)。
+無効値は以下で表現されます:
+- アルファチャンネル = 0 - 透明ピクセル（RGBA対応）
+※ x = 2<sup>23</sup> すなわち (R, G, B) = (128, 0, 0)を無効値とする場合もあるため、この場合も無効値として取り扱う処理にしています。
+※全ての無効値がNaNとして処理されます。
 
 標高分解能u = 0.01mの場合、-83,886.07mから+83,886.07mまでの範囲を表すことができ、エベレスト（8,849m）やマリアナ海溝チャレンジャー海淵（-10,920m）などの標高を十分に表現できます。
 
@@ -105,28 +117,38 @@ demSource.setupMaplibre(maplibregl);
 
 他の使用方法は、もとのプロジェクトと同一です。
 
+## 数値PNGタイルのテスト
+数値PNGタイルの動作確認用のテストページが含まれています：
+
+**test-numpng.html** - 産総研地質調査総合センターの数値PNGタイルを使用したデモページ
+- データソース: https://tiles.gsj.jp/tiles/elev/land/{z}/{y}/{x}.png
+- 富士山周辺の等高線を表示
+- ビルド後、ブラウザでtest-numpng.htmlを開いて動作確認可能
+
 # ライセンス
 このプロジェクトは、元のmaplibre-contourプロジェクトのライセンスを継承します。詳細はLICENSEファイルを参照してください。
 
 # メモ - Memo (Japanese Only)
-- 変更点
-  - src\decode-image.ts
-  encoding: "numpng"を追加
-  - package.json
-  Windowsでbuildできるよう、
-    - rm -rfをrimrafに置換
-    - rimrafパッケージをインストール
-    npm install rimraf --save-dev
-    - Windowsのファイルパスで使用できない文字を回避するため変更
-    "generate-types": "tsc --emitDeclarationOnly --declaration --outDir dist"
-    この変更に伴い、distディレクトリ内の.test.d.ts、-jest.d.tsで終わるすべてのファイルはbuild後に手動で削除すること
-    ※ubuntuで動作確認
+- 数値PNGタイル対応での変更点
+  - src/types.ts: Encoding型に"numpng"を追加
+  - src/decode-image.ts: 
+    - "numpng"エンコーディング対応を追加
+    - 無効値処理をNaNで統一（x=2^23の場合: 0 → NaN）
+    - RGBA対応: アルファチャンネル=0と従来の無効値(128,0,0)をNaNで処理
+  - src/dem-source.ts: コンストラクタのencodingパラメータに"numpng"を追加
+  - src/local-dem-manager.ts: 404エラー処理の改善
+    - 中央タイル404エラー時は描画中止
+    - 周辺タイル404エラー時はundefinedを返して描画継続
+  - test-numpng.html: 数値PNGタイル用テストページを追加
 
-- 手順
-  1. src内のファイルを編集
-  2. npm run build
-  3. distディレクトリ内の.test.d.ts、-jest.d.tsで終わるすべてのファイルを手動で削除
-  4. GitHubに追加
+- ビルド手順
+  1. 依存関係のインストール: npm install
+  2. ビルド実行: npm run build
+  3. テスト用ファイルの自動削除: ビルドプロセスに組み込み済み
+
+- テスト
+  - test-numpng.html: 産総研地質調査総合センターの数値PNGタイルを使用
+  - URL: https://tiles.gsj.jp/tiles/elev/land/{z}/{y}/{x}.png
 
 ---
 # maplibre-contour

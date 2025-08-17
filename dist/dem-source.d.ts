@@ -1,5 +1,4 @@
-import { DemManager } from "./dem-manager";
-import { DemTile, GlobalContourTileOptions, Timing } from "./types";
+import type { DemManager, DemTile, GlobalContourTileOptions, Timing } from "./types";
 import type WorkerDispatch from "./worker-dispatch";
 import Actor from "./actor";
 type RequestParameters = {
@@ -40,7 +39,7 @@ export declare class DemSource {
         cacheSize?: number;
         /** Prefix for the maplibre protocol */
         id?: string;
-        encoding?: "terrarium" | "mapbox";
+        encoding?: "terrarium" | "mapbox" | "numpng";
         /** Maximum zoom of tiles contained in the source */
         maxzoom: number;
         timeoutMs?: number;

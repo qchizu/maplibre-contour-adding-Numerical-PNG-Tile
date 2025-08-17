@@ -21,20 +21,13 @@ function defaultActor() {
  * Caches, decodes, and processes raster tiles in a shared web worker.
  */
 class RemoteDemManager {
-    constructor(demUrlPattern, cacheSize, encoding, maxzoom, timeoutMs, actor) {
+    constructor(options) {
         this.fetchTile = (z, x, y, abortController, timer) => this.actor.send("fetchTile", [], abortController, timer, this.managerId, z, x, y);
         this.fetchAndParseTile = (z, x, y, abortController, timer) => this.actor.send("fetchAndParseTile", [], abortController, timer, this.managerId, z, x, y);
         this.fetchContourTile = (z, x, y, options, abortController, timer) => this.actor.send("fetchContourTile", [], abortController, timer, this.managerId, z, x, y, options);
         const managerId = (this.managerId = ++id);
-        this.actor = actor || defaultActor();
-        this.loaded = this.actor.send("init", [], new AbortController(), undefined, {
-            cacheSize,
-            demUrlPattern,
-            encoding,
-            maxzoom,
-            managerId,
-            timeoutMs,
-        });
+        this.actor = options.actor || defaultActor();
+        this.loaded = this.actor.send("init", [], new AbortController(), undefined, Object.assign(Object.assign({}, options), { managerId }));
     }
 }
 
@@ -144,7 +137,14 @@ class DemSource {
         this.sharedDemProtocolUrl = `${this.sharedDemProtocolId}://{z}/{x}/{y}`;
         this.contourProtocolUrlBase = `${this.contourProtocolId}://{z}/{x}/{y}`;
         const ManagerClass = worker ? RemoteDemManager : actor.L;
-        this.manager = new ManagerClass(url, cacheSize, encoding, maxzoom, timeoutMs, actor$1);
+        this.manager = new ManagerClass({
+            demUrlPattern: url,
+            cacheSize,
+            encoding,
+            maxzoom,
+            timeoutMs,
+            actor: actor$1,
+        });
     }
     getDemTile(z, x, y, abortController) {
         return this.manager.fetchAndParseTile(z, x, y, abortController || new AbortController());
@@ -156,11 +156,11 @@ class DemSource {
 }
 
 const exported = {
-    generateIsolines: actor.b,
+    generateIsolines: actor.c,
     DemSource,
     HeightTile: actor.H,
     LocalDemManager: actor.L,
-    decodeParsedImage: actor.c,
+    decodeParsedImage: actor.b,
     set workerUrl(url) {
         CONFIG.workerUrl = url;
     },

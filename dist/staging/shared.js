@@ -287,7 +287,7 @@ function generateIsolines(interval, tile, extent = 4096, buffer = 1) {
     return segments;
 }
 
-/*! *****************************************************************************
+/******************************************************************************
 Copyright (c) Microsoft Corporation.
 
 Permission to use, copy, modify, and/or distribute this software for any
@@ -301,7 +301,7 @@ LOSS OF USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR
 OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
 PERFORMANCE OF THIS SOFTWARE.
 ***************************************************************************** */
-/* global Reflect, Promise */
+/* global Reflect, Promise, SuppressedError, Symbol, Iterator */
 
 
 function __rest(s, e) {
@@ -325,6 +325,11 @@ function __awaiter(thisArg, _arguments, P, generator) {
         step((generator = generator.apply(thisArg, _arguments || [])).next());
     });
 }
+
+typeof SuppressedError === "function" ? SuppressedError : function (error, suppressed, message) {
+    var e = new Error(message);
+    return e.name = "SuppressedError", e.error = error, e.suppressed = suppressed, e;
+};
 
 function sortedEntries(object) {
     const entries = Object.entries(object);
@@ -597,7 +602,7 @@ function decodeImageVideoFrame(blob, encoding, abortController) {
             }
             return decodeParsedImage(img.width, img.height, encoding, data);
         }
-        catch (e) {
+        catch (_) {
             if (isAborted(abortController))
                 return null;
             // fall back to offscreen canvas
@@ -644,10 +649,10 @@ function decodeImageOnMainThread(blob, encoding, abortController) {
 }
 function isWorker() {
     return (
-    // @ts-ignore
+    // @ts-expect-error WorkerGlobalScope defined
     typeof WorkerGlobalScope !== "undefined" &&
         typeof self !== "undefined" &&
-        // @ts-ignore
+        // @ts-expect-error WorkerGlobalScope defined
         self instanceof WorkerGlobalScope);
 }
 const defaultDecoder = shouldUseVideoFrame()
@@ -670,13 +675,20 @@ function getElevations(img, encoding, canvas, canvasContext) {
 function decodeParsedImage(width, height, encoding, input) {
     const getDecoder = (encoding) => {
         if (encoding === "mapbox") {
-            return (r, g, b) => -10000 + (r * 256 * 256 + g * 256 + b) * 0.1;
+            return (r, g, b) => -1e4 + (r * 256 * 256 + g * 256 + b) * 0.1;
         }
         else if (encoding === "numpng") {
-            return (r, g, b) => {
+            return (r, g, b, a) => {
+                // RGBA対応: アルファチャンネル=0の場合は無効値
+                if (a === 0)
+                    return NaN;
+                // 従来の無効値(128,0,0)
+                if (r === 128 && g === 0 && b === 0)
+                    return NaN;
                 const numpngX = r * 256 * 256 + g * 256 + b;
+                // x = 2^23の場合は無効値
                 if (numpngX === 2 ** 23)
-                    return 0;
+                    return NaN;
                 return numpngX > 2 ** 23 ? (numpngX - 2 ** 24) * 0.01 : numpngX * 0.01;
             };
         }
@@ -687,12 +699,12 @@ function decodeParsedImage(width, height, encoding, input) {
     const decoder = getDecoder(encoding);
     const data = new Float32Array(width * height);
     for (let i = 0; i < input.length; i += 4) {
-        data[i / 4] = decoder(input[i], input[i + 1], input[i + 2]);
+        data[i / 4] = decoder(input[i], input[i + 1], input[i + 2], input[i + 3]);
     }
     return { width, height, data };
 }
 
-const MIN_VALID_M = -12000;
+const MIN_VALID_M = -12e3;
 const MAX_VALID_M = 9000;
 function defaultIsValid(number) {
     return !isNaN(number) && number >= MIN_VALID_M && number <= MAX_VALID_M;
@@ -831,136 +843,42 @@ class HeightTile {
     }
 }
 
-function getDefaultExportFromCjs (x) {
-	return x && x.__esModule && Object.prototype.hasOwnProperty.call(x, 'default') ? x['default'] : x;
-}
-
-var ieee754$1 = {};
-
-/*! ieee754. BSD-3-Clause License. Feross Aboukhadijeh <https://feross.org/opensource> */
-
-ieee754$1.read = function (buffer, offset, isLE, mLen, nBytes) {
-  var e, m;
-  var eLen = (nBytes * 8) - mLen - 1;
-  var eMax = (1 << eLen) - 1;
-  var eBias = eMax >> 1;
-  var nBits = -7;
-  var i = isLE ? (nBytes - 1) : 0;
-  var d = isLE ? -1 : 1;
-  var s = buffer[offset + i];
-
-  i += d;
-
-  e = s & ((1 << (-nBits)) - 1);
-  s >>= (-nBits);
-  nBits += eLen;
-  for (; nBits > 0; e = (e * 256) + buffer[offset + i], i += d, nBits -= 8) {}
-
-  m = e & ((1 << (-nBits)) - 1);
-  e >>= (-nBits);
-  nBits += mLen;
-  for (; nBits > 0; m = (m * 256) + buffer[offset + i], i += d, nBits -= 8) {}
-
-  if (e === 0) {
-    e = 1 - eBias;
-  } else if (e === eMax) {
-    return m ? NaN : ((s ? -1 : 1) * Infinity)
-  } else {
-    m = m + Math.pow(2, mLen);
-    e = e - eBias;
-  }
-  return (s ? -1 : 1) * m * Math.pow(2, e - mLen)
-};
-
-ieee754$1.write = function (buffer, value, offset, isLE, mLen, nBytes) {
-  var e, m, c;
-  var eLen = (nBytes * 8) - mLen - 1;
-  var eMax = (1 << eLen) - 1;
-  var eBias = eMax >> 1;
-  var rt = (mLen === 23 ? Math.pow(2, -24) - Math.pow(2, -77) : 0);
-  var i = isLE ? 0 : (nBytes - 1);
-  var d = isLE ? 1 : -1;
-  var s = value < 0 || (value === 0 && 1 / value < 0) ? 1 : 0;
-
-  value = Math.abs(value);
-
-  if (isNaN(value) || value === Infinity) {
-    m = isNaN(value) ? 1 : 0;
-    e = eMax;
-  } else {
-    e = Math.floor(Math.log(value) / Math.LN2);
-    if (value * (c = Math.pow(2, -e)) < 1) {
-      e--;
-      c *= 2;
-    }
-    if (e + eBias >= 1) {
-      value += rt / c;
-    } else {
-      value += rt * Math.pow(2, 1 - eBias);
-    }
-    if (value * c >= 2) {
-      e++;
-      c /= 2;
-    }
-
-    if (e + eBias >= eMax) {
-      m = 0;
-      e = eMax;
-    } else if (e + eBias >= 1) {
-      m = ((value * c) - 1) * Math.pow(2, mLen);
-      e = e + eBias;
-    } else {
-      m = value * Math.pow(2, eBias - 1) * Math.pow(2, mLen);
-      e = 0;
-    }
-  }
-
-  for (; mLen >= 8; buffer[offset + i] = m & 0xff, i += d, m /= 256, mLen -= 8) {}
-
-  e = (e << mLen) | m;
-  eLen += mLen;
-  for (; eLen > 0; buffer[offset + i] = e & 0xff, i += d, e /= 256, eLen -= 8) {}
-
-  buffer[offset + i - d] |= s * 128;
-};
-
-var pbf = Pbf;
-
-var ieee754 = ieee754$1;
-
-function Pbf(buf) {
-    this.buf = ArrayBuffer.isView && ArrayBuffer.isView(buf) ? buf : new Uint8Array(buf || 0);
-    this.pos = 0;
-    this.type = 0;
-    this.length = this.buf.length;
-}
-
-Pbf.Varint  = 0; // varint: int32, int64, uint32, uint64, sint32, sint64, bool, enum
-Pbf.Fixed64 = 1; // 64-bit: double, fixed64, sfixed64
-Pbf.Bytes   = 2; // length-delimited: string, bytes, embedded messages, packed repeated fields
-Pbf.Fixed32 = 5; // 32-bit: float, fixed32, sfixed32
-
-var SHIFT_LEFT_32 = (1 << 16) * (1 << 16),
-    SHIFT_RIGHT_32 = 1 / SHIFT_LEFT_32;
+const SHIFT_LEFT_32 = (1 << 16) * (1 << 16);
+const SHIFT_RIGHT_32 = 1 / SHIFT_LEFT_32;
 
 // Threshold chosen based on both benchmarking and knowledge about browser string
 // data structures (which currently switch structure types at 12 bytes or more)
-var TEXT_DECODER_MIN_LENGTH = 12;
-var utf8TextDecoder = typeof TextDecoder === 'undefined' ? null : new TextDecoder('utf8');
+const TEXT_DECODER_MIN_LENGTH = 12;
+const utf8TextDecoder = typeof TextDecoder === 'undefined' ? null : new TextDecoder('utf-8');
 
-Pbf.prototype = {
+const PBF_VARINT  = 0; // varint: int32, int64, uint32, uint64, sint32, sint64, bool, enum
+const PBF_FIXED64 = 1; // 64-bit: double, fixed64, sfixed64
+const PBF_BYTES   = 2; // length-delimited: string, bytes, embedded messages, packed repeated fields
+const PBF_FIXED32 = 5; // 32-bit: float, fixed32, sfixed32
 
-    destroy: function() {
-        this.buf = null;
-    },
+class Pbf {
+    /**
+     * @param {Uint8Array | ArrayBuffer} [buf]
+     */
+    constructor(buf = new Uint8Array(16)) {
+        this.buf = ArrayBuffer.isView(buf) ? buf : new Uint8Array(buf);
+        this.dataView = new DataView(this.buf.buffer);
+        this.pos = 0;
+        this.type = 0;
+        this.length = this.buf.length;
+    }
 
     // === READING =================================================================
 
-    readFields: function(readField, result, end) {
-        end = end || this.length;
-
+    /**
+     * @template T
+     * @param {(tag: number, result: T, pbf: Pbf) => void} readField
+     * @param {T} result
+     * @param {number} [end]
+     */
+    readFields(readField, result, end = this.length) {
         while (this.pos < end) {
-            var val = this.readVarint(),
+            const val = this.readVarint(),
                 tag = val >> 3,
                 startPos = this.pos;
 
@@ -970,53 +888,61 @@ Pbf.prototype = {
             if (this.pos === startPos) this.skip(val);
         }
         return result;
-    },
+    }
 
-    readMessage: function(readField, result) {
+    /**
+     * @template T
+     * @param {(tag: number, result: T, pbf: Pbf) => void} readField
+     * @param {T} result
+     */
+    readMessage(readField, result) {
         return this.readFields(readField, result, this.readVarint() + this.pos);
-    },
+    }
 
-    readFixed32: function() {
-        var val = readUInt32(this.buf, this.pos);
+    readFixed32() {
+        const val = this.dataView.getUint32(this.pos, true);
         this.pos += 4;
         return val;
-    },
+    }
 
-    readSFixed32: function() {
-        var val = readInt32(this.buf, this.pos);
+    readSFixed32() {
+        const val = this.dataView.getInt32(this.pos, true);
         this.pos += 4;
         return val;
-    },
+    }
 
     // 64-bit int handling is based on github.com/dpw/node-buffer-more-ints (MIT-licensed)
 
-    readFixed64: function() {
-        var val = readUInt32(this.buf, this.pos) + readUInt32(this.buf, this.pos + 4) * SHIFT_LEFT_32;
+    readFixed64() {
+        const val = this.dataView.getUint32(this.pos, true) + this.dataView.getUint32(this.pos + 4, true) * SHIFT_LEFT_32;
         this.pos += 8;
         return val;
-    },
+    }
 
-    readSFixed64: function() {
-        var val = readUInt32(this.buf, this.pos) + readInt32(this.buf, this.pos + 4) * SHIFT_LEFT_32;
+    readSFixed64() {
+        const val = this.dataView.getUint32(this.pos, true) + this.dataView.getInt32(this.pos + 4, true) * SHIFT_LEFT_32;
         this.pos += 8;
         return val;
-    },
+    }
 
-    readFloat: function() {
-        var val = ieee754.read(this.buf, this.pos, true, 23, 4);
+    readFloat() {
+        const val = this.dataView.getFloat32(this.pos, true);
         this.pos += 4;
         return val;
-    },
+    }
 
-    readDouble: function() {
-        var val = ieee754.read(this.buf, this.pos, true, 52, 8);
+    readDouble() {
+        const val = this.dataView.getFloat64(this.pos, true);
         this.pos += 8;
         return val;
-    },
+    }
 
-    readVarint: function(isSigned) {
-        var buf = this.buf,
-            val, b;
+    /**
+     * @param {boolean} [isSigned]
+     */
+    readVarint(isSigned) {
+        const buf = this.buf;
+        let val, b;
 
         b = buf[this.pos++]; val  =  b & 0x7f;        if (b < 0x80) return val;
         b = buf[this.pos++]; val |= (b & 0x7f) << 7;  if (b < 0x80) return val;
@@ -1025,168 +951,177 @@ Pbf.prototype = {
         b = buf[this.pos];   val |= (b & 0x0f) << 28;
 
         return readVarintRemainder(val, isSigned, this);
-    },
+    }
 
-    readVarint64: function() { // for compatibility with v2.0.1
+    readVarint64() { // for compatibility with v2.0.1
         return this.readVarint(true);
-    },
+    }
 
-    readSVarint: function() {
-        var num = this.readVarint();
+    readSVarint() {
+        const num = this.readVarint();
         return num % 2 === 1 ? (num + 1) / -2 : num / 2; // zigzag encoding
-    },
+    }
 
-    readBoolean: function() {
+    readBoolean() {
         return Boolean(this.readVarint());
-    },
+    }
 
-    readString: function() {
-        var end = this.readVarint() + this.pos;
-        var pos = this.pos;
+    readString() {
+        const end = this.readVarint() + this.pos;
+        const pos = this.pos;
         this.pos = end;
 
         if (end - pos >= TEXT_DECODER_MIN_LENGTH && utf8TextDecoder) {
             // longer strings are fast with the built-in browser TextDecoder API
-            return readUtf8TextDecoder(this.buf, pos, end);
+            return utf8TextDecoder.decode(this.buf.subarray(pos, end));
         }
         // short strings are fast with our custom implementation
         return readUtf8(this.buf, pos, end);
-    },
+    }
 
-    readBytes: function() {
-        var end = this.readVarint() + this.pos,
+    readBytes() {
+        const end = this.readVarint() + this.pos,
             buffer = this.buf.subarray(this.pos, end);
         this.pos = end;
         return buffer;
-    },
+    }
 
     // verbose for performance reasons; doesn't affect gzipped size
 
-    readPackedVarint: function(arr, isSigned) {
-        if (this.type !== Pbf.Bytes) return arr.push(this.readVarint(isSigned));
-        var end = readPackedEnd(this);
-        arr = arr || [];
+    /**
+     * @param {number[]} [arr]
+     * @param {boolean} [isSigned]
+     */
+    readPackedVarint(arr = [], isSigned) {
+        const end = this.readPackedEnd();
         while (this.pos < end) arr.push(this.readVarint(isSigned));
         return arr;
-    },
-    readPackedSVarint: function(arr) {
-        if (this.type !== Pbf.Bytes) return arr.push(this.readSVarint());
-        var end = readPackedEnd(this);
-        arr = arr || [];
+    }
+    /** @param {number[]} [arr] */
+    readPackedSVarint(arr = []) {
+        const end = this.readPackedEnd();
         while (this.pos < end) arr.push(this.readSVarint());
         return arr;
-    },
-    readPackedBoolean: function(arr) {
-        if (this.type !== Pbf.Bytes) return arr.push(this.readBoolean());
-        var end = readPackedEnd(this);
-        arr = arr || [];
+    }
+    /** @param {boolean[]} [arr] */
+    readPackedBoolean(arr = []) {
+        const end = this.readPackedEnd();
         while (this.pos < end) arr.push(this.readBoolean());
         return arr;
-    },
-    readPackedFloat: function(arr) {
-        if (this.type !== Pbf.Bytes) return arr.push(this.readFloat());
-        var end = readPackedEnd(this);
-        arr = arr || [];
+    }
+    /** @param {number[]} [arr] */
+    readPackedFloat(arr = []) {
+        const end = this.readPackedEnd();
         while (this.pos < end) arr.push(this.readFloat());
         return arr;
-    },
-    readPackedDouble: function(arr) {
-        if (this.type !== Pbf.Bytes) return arr.push(this.readDouble());
-        var end = readPackedEnd(this);
-        arr = arr || [];
+    }
+    /** @param {number[]} [arr] */
+    readPackedDouble(arr = []) {
+        const end = this.readPackedEnd();
         while (this.pos < end) arr.push(this.readDouble());
         return arr;
-    },
-    readPackedFixed32: function(arr) {
-        if (this.type !== Pbf.Bytes) return arr.push(this.readFixed32());
-        var end = readPackedEnd(this);
-        arr = arr || [];
+    }
+    /** @param {number[]} [arr] */
+    readPackedFixed32(arr = []) {
+        const end = this.readPackedEnd();
         while (this.pos < end) arr.push(this.readFixed32());
         return arr;
-    },
-    readPackedSFixed32: function(arr) {
-        if (this.type !== Pbf.Bytes) return arr.push(this.readSFixed32());
-        var end = readPackedEnd(this);
-        arr = arr || [];
+    }
+    /** @param {number[]} [arr] */
+    readPackedSFixed32(arr = []) {
+        const end = this.readPackedEnd();
         while (this.pos < end) arr.push(this.readSFixed32());
         return arr;
-    },
-    readPackedFixed64: function(arr) {
-        if (this.type !== Pbf.Bytes) return arr.push(this.readFixed64());
-        var end = readPackedEnd(this);
-        arr = arr || [];
+    }
+    /** @param {number[]} [arr] */
+    readPackedFixed64(arr = []) {
+        const end = this.readPackedEnd();
         while (this.pos < end) arr.push(this.readFixed64());
         return arr;
-    },
-    readPackedSFixed64: function(arr) {
-        if (this.type !== Pbf.Bytes) return arr.push(this.readSFixed64());
-        var end = readPackedEnd(this);
-        arr = arr || [];
+    }
+    /** @param {number[]} [arr] */
+    readPackedSFixed64(arr = []) {
+        const end = this.readPackedEnd();
         while (this.pos < end) arr.push(this.readSFixed64());
         return arr;
-    },
+    }
+    readPackedEnd() {
+        return this.type === PBF_BYTES ? this.readVarint() + this.pos : this.pos + 1;
+    }
 
-    skip: function(val) {
-        var type = val & 0x7;
-        if (type === Pbf.Varint) while (this.buf[this.pos++] > 0x7f) {}
-        else if (type === Pbf.Bytes) this.pos = this.readVarint() + this.pos;
-        else if (type === Pbf.Fixed32) this.pos += 4;
-        else if (type === Pbf.Fixed64) this.pos += 8;
-        else throw new Error('Unimplemented type: ' + type);
-    },
+    /** @param {number} val */
+    skip(val) {
+        const type = val & 0x7;
+        if (type === PBF_VARINT) while (this.buf[this.pos++] > 0x7f) {}
+        else if (type === PBF_BYTES) this.pos = this.readVarint() + this.pos;
+        else if (type === PBF_FIXED32) this.pos += 4;
+        else if (type === PBF_FIXED64) this.pos += 8;
+        else throw new Error(`Unimplemented type: ${type}`);
+    }
 
     // === WRITING =================================================================
 
-    writeTag: function(tag, type) {
+    /**
+     * @param {number} tag
+     * @param {number} type
+     */
+    writeTag(tag, type) {
         this.writeVarint((tag << 3) | type);
-    },
+    }
 
-    realloc: function(min) {
-        var length = this.length || 16;
+    /** @param {number} min */
+    realloc(min) {
+        let length = this.length || 16;
 
         while (length < this.pos + min) length *= 2;
 
         if (length !== this.length) {
-            var buf = new Uint8Array(length);
+            const buf = new Uint8Array(length);
             buf.set(this.buf);
             this.buf = buf;
+            this.dataView = new DataView(buf.buffer);
             this.length = length;
         }
-    },
+    }
 
-    finish: function() {
+    finish() {
         this.length = this.pos;
         this.pos = 0;
         return this.buf.subarray(0, this.length);
-    },
+    }
 
-    writeFixed32: function(val) {
+    /** @param {number} val */
+    writeFixed32(val) {
         this.realloc(4);
-        writeInt32(this.buf, val, this.pos);
+        this.dataView.setInt32(this.pos, val, true);
         this.pos += 4;
-    },
+    }
 
-    writeSFixed32: function(val) {
+    /** @param {number} val */
+    writeSFixed32(val) {
         this.realloc(4);
-        writeInt32(this.buf, val, this.pos);
+        this.dataView.setInt32(this.pos, val, true);
         this.pos += 4;
-    },
+    }
 
-    writeFixed64: function(val) {
+    /** @param {number} val */
+    writeFixed64(val) {
         this.realloc(8);
-        writeInt32(this.buf, val & -1, this.pos);
-        writeInt32(this.buf, Math.floor(val * SHIFT_RIGHT_32), this.pos + 4);
+        this.dataView.setInt32(this.pos, val & -1, true);
+        this.dataView.setInt32(this.pos + 4, Math.floor(val * SHIFT_RIGHT_32), true);
         this.pos += 8;
-    },
+    }
 
-    writeSFixed64: function(val) {
+    /** @param {number} val */
+    writeSFixed64(val) {
         this.realloc(8);
-        writeInt32(this.buf, val & -1, this.pos);
-        writeInt32(this.buf, Math.floor(val * SHIFT_RIGHT_32), this.pos + 4);
+        this.dataView.setInt32(this.pos, val & -1, true);
+        this.dataView.setInt32(this.pos + 4, Math.floor(val * SHIFT_RIGHT_32), true);
         this.pos += 8;
-    },
+    }
 
-    writeVarint: function(val) {
+    /** @param {number} val */
+    writeVarint(val) {
         val = +val || 0;
 
         if (val > 0xfffffff || val < 0) {
@@ -1200,26 +1135,29 @@ Pbf.prototype = {
         this.buf[this.pos++] = ((val >>>= 7) & 0x7f) | (val > 0x7f ? 0x80 : 0); if (val <= 0x7f) return;
         this.buf[this.pos++] = ((val >>>= 7) & 0x7f) | (val > 0x7f ? 0x80 : 0); if (val <= 0x7f) return;
         this.buf[this.pos++] =   (val >>> 7) & 0x7f;
-    },
+    }
 
-    writeSVarint: function(val) {
+    /** @param {number} val */
+    writeSVarint(val) {
         this.writeVarint(val < 0 ? -val * 2 - 1 : val * 2);
-    },
+    }
 
-    writeBoolean: function(val) {
-        this.writeVarint(Boolean(val));
-    },
+    /** @param {boolean} val */
+    writeBoolean(val) {
+        this.writeVarint(+val);
+    }
 
-    writeString: function(str) {
+    /** @param {string} str */
+    writeString(str) {
         str = String(str);
         this.realloc(str.length * 4);
 
         this.pos++; // reserve 1 byte for short string length
 
-        var startPos = this.pos;
+        const startPos = this.pos;
         // write the string directly to the buffer and see how much was written
         this.pos = writeUtf8(this.buf, str, this.pos);
-        var len = this.pos - startPos;
+        const len = this.pos - startPos;
 
         if (len >= 0x80) makeRoomForExtraLength(startPos, len, this);
 
@@ -1227,34 +1165,42 @@ Pbf.prototype = {
         this.pos = startPos - 1;
         this.writeVarint(len);
         this.pos += len;
-    },
+    }
 
-    writeFloat: function(val) {
+    /** @param {number} val */
+    writeFloat(val) {
         this.realloc(4);
-        ieee754.write(this.buf, val, this.pos, true, 23, 4);
+        this.dataView.setFloat32(this.pos, val, true);
         this.pos += 4;
-    },
+    }
 
-    writeDouble: function(val) {
+    /** @param {number} val */
+    writeDouble(val) {
         this.realloc(8);
-        ieee754.write(this.buf, val, this.pos, true, 52, 8);
+        this.dataView.setFloat64(this.pos, val, true);
         this.pos += 8;
-    },
+    }
 
-    writeBytes: function(buffer) {
-        var len = buffer.length;
+    /** @param {Uint8Array} buffer */
+    writeBytes(buffer) {
+        const len = buffer.length;
         this.writeVarint(len);
         this.realloc(len);
-        for (var i = 0; i < len; i++) this.buf[this.pos++] = buffer[i];
-    },
+        for (let i = 0; i < len; i++) this.buf[this.pos++] = buffer[i];
+    }
 
-    writeRawMessage: function(fn, obj) {
+    /**
+     * @template T
+     * @param {(obj: T, pbf: Pbf) => void} fn
+     * @param {T} obj
+     */
+    writeRawMessage(fn, obj) {
         this.pos++; // reserve 1 byte for short message length
 
         // write the message directly to the buffer and see how much was written
-        var startPos = this.pos;
+        const startPos = this.pos;
         fn(obj, this);
-        var len = this.pos - startPos;
+        const len = this.pos - startPos;
 
         if (len >= 0x80) makeRoomForExtraLength(startPos, len, this);
 
@@ -1262,71 +1208,179 @@ Pbf.prototype = {
         this.pos = startPos - 1;
         this.writeVarint(len);
         this.pos += len;
-    },
-
-    writeMessage: function(tag, fn, obj) {
-        this.writeTag(tag, Pbf.Bytes);
-        this.writeRawMessage(fn, obj);
-    },
-
-    writePackedVarint:   function(tag, arr) { if (arr.length) this.writeMessage(tag, writePackedVarint, arr);   },
-    writePackedSVarint:  function(tag, arr) { if (arr.length) this.writeMessage(tag, writePackedSVarint, arr);  },
-    writePackedBoolean:  function(tag, arr) { if (arr.length) this.writeMessage(tag, writePackedBoolean, arr);  },
-    writePackedFloat:    function(tag, arr) { if (arr.length) this.writeMessage(tag, writePackedFloat, arr);    },
-    writePackedDouble:   function(tag, arr) { if (arr.length) this.writeMessage(tag, writePackedDouble, arr);   },
-    writePackedFixed32:  function(tag, arr) { if (arr.length) this.writeMessage(tag, writePackedFixed32, arr);  },
-    writePackedSFixed32: function(tag, arr) { if (arr.length) this.writeMessage(tag, writePackedSFixed32, arr); },
-    writePackedFixed64:  function(tag, arr) { if (arr.length) this.writeMessage(tag, writePackedFixed64, arr);  },
-    writePackedSFixed64: function(tag, arr) { if (arr.length) this.writeMessage(tag, writePackedSFixed64, arr); },
-
-    writeBytesField: function(tag, buffer) {
-        this.writeTag(tag, Pbf.Bytes);
-        this.writeBytes(buffer);
-    },
-    writeFixed32Field: function(tag, val) {
-        this.writeTag(tag, Pbf.Fixed32);
-        this.writeFixed32(val);
-    },
-    writeSFixed32Field: function(tag, val) {
-        this.writeTag(tag, Pbf.Fixed32);
-        this.writeSFixed32(val);
-    },
-    writeFixed64Field: function(tag, val) {
-        this.writeTag(tag, Pbf.Fixed64);
-        this.writeFixed64(val);
-    },
-    writeSFixed64Field: function(tag, val) {
-        this.writeTag(tag, Pbf.Fixed64);
-        this.writeSFixed64(val);
-    },
-    writeVarintField: function(tag, val) {
-        this.writeTag(tag, Pbf.Varint);
-        this.writeVarint(val);
-    },
-    writeSVarintField: function(tag, val) {
-        this.writeTag(tag, Pbf.Varint);
-        this.writeSVarint(val);
-    },
-    writeStringField: function(tag, str) {
-        this.writeTag(tag, Pbf.Bytes);
-        this.writeString(str);
-    },
-    writeFloatField: function(tag, val) {
-        this.writeTag(tag, Pbf.Fixed32);
-        this.writeFloat(val);
-    },
-    writeDoubleField: function(tag, val) {
-        this.writeTag(tag, Pbf.Fixed64);
-        this.writeDouble(val);
-    },
-    writeBooleanField: function(tag, val) {
-        this.writeVarintField(tag, Boolean(val));
     }
-};
 
+    /**
+     * @template T
+     * @param {number} tag
+     * @param {(obj: T, pbf: Pbf) => void} fn
+     * @param {T} obj
+     */
+    writeMessage(tag, fn, obj) {
+        this.writeTag(tag, PBF_BYTES);
+        this.writeRawMessage(fn, obj);
+    }
+
+    /**
+     * @param {number} tag
+     * @param {number[]} arr
+     */
+    writePackedVarint(tag, arr) {
+        if (arr.length) this.writeMessage(tag, writePackedVarint, arr);
+    }
+    /**
+     * @param {number} tag
+     * @param {number[]} arr
+     */
+    writePackedSVarint(tag, arr) {
+        if (arr.length) this.writeMessage(tag, writePackedSVarint, arr);
+    }
+    /**
+     * @param {number} tag
+     * @param {boolean[]} arr
+     */
+    writePackedBoolean(tag, arr) {
+        if (arr.length) this.writeMessage(tag, writePackedBoolean, arr);
+    }
+    /**
+     * @param {number} tag
+     * @param {number[]} arr
+     */
+    writePackedFloat(tag, arr) {
+        if (arr.length) this.writeMessage(tag, writePackedFloat, arr);
+    }
+    /**
+     * @param {number} tag
+     * @param {number[]} arr
+     */
+    writePackedDouble(tag, arr) {
+        if (arr.length) this.writeMessage(tag, writePackedDouble, arr);
+    }
+    /**
+     * @param {number} tag
+     * @param {number[]} arr
+     */
+    writePackedFixed32(tag, arr) {
+        if (arr.length) this.writeMessage(tag, writePackedFixed32, arr);
+    }
+    /**
+     * @param {number} tag
+     * @param {number[]} arr
+     */
+    writePackedSFixed32(tag, arr) {
+        if (arr.length) this.writeMessage(tag, writePackedSFixed32, arr);
+    }
+    /**
+     * @param {number} tag
+     * @param {number[]} arr
+     */
+    writePackedFixed64(tag, arr) {
+        if (arr.length) this.writeMessage(tag, writePackedFixed64, arr);
+    }
+    /**
+     * @param {number} tag
+     * @param {number[]} arr
+     */
+    writePackedSFixed64(tag, arr) {
+        if (arr.length) this.writeMessage(tag, writePackedSFixed64, arr);
+    }
+
+    /**
+     * @param {number} tag
+     * @param {Uint8Array} buffer
+     */
+    writeBytesField(tag, buffer) {
+        this.writeTag(tag, PBF_BYTES);
+        this.writeBytes(buffer);
+    }
+    /**
+     * @param {number} tag
+     * @param {number} val
+     */
+    writeFixed32Field(tag, val) {
+        this.writeTag(tag, PBF_FIXED32);
+        this.writeFixed32(val);
+    }
+    /**
+     * @param {number} tag
+     * @param {number} val
+     */
+    writeSFixed32Field(tag, val) {
+        this.writeTag(tag, PBF_FIXED32);
+        this.writeSFixed32(val);
+    }
+    /**
+     * @param {number} tag
+     * @param {number} val
+     */
+    writeFixed64Field(tag, val) {
+        this.writeTag(tag, PBF_FIXED64);
+        this.writeFixed64(val);
+    }
+    /**
+     * @param {number} tag
+     * @param {number} val
+     */
+    writeSFixed64Field(tag, val) {
+        this.writeTag(tag, PBF_FIXED64);
+        this.writeSFixed64(val);
+    }
+    /**
+     * @param {number} tag
+     * @param {number} val
+     */
+    writeVarintField(tag, val) {
+        this.writeTag(tag, PBF_VARINT);
+        this.writeVarint(val);
+    }
+    /**
+     * @param {number} tag
+     * @param {number} val
+     */
+    writeSVarintField(tag, val) {
+        this.writeTag(tag, PBF_VARINT);
+        this.writeSVarint(val);
+    }
+    /**
+     * @param {number} tag
+     * @param {string} str
+     */
+    writeStringField(tag, str) {
+        this.writeTag(tag, PBF_BYTES);
+        this.writeString(str);
+    }
+    /**
+     * @param {number} tag
+     * @param {number} val
+     */
+    writeFloatField(tag, val) {
+        this.writeTag(tag, PBF_FIXED32);
+        this.writeFloat(val);
+    }
+    /**
+     * @param {number} tag
+     * @param {number} val
+     */
+    writeDoubleField(tag, val) {
+        this.writeTag(tag, PBF_FIXED64);
+        this.writeDouble(val);
+    }
+    /**
+     * @param {number} tag
+     * @param {boolean} val
+     */
+    writeBooleanField(tag, val) {
+        this.writeVarintField(tag, +val);
+    }
+}
+/**
+ * @param {number} l
+ * @param {boolean | undefined} s
+ * @param {Pbf} p
+ */
 function readVarintRemainder(l, s, p) {
-    var buf = p.buf,
-        h, b;
+    const buf = p.buf;
+    let h, b;
 
     b = buf[p.pos++]; h  = (b & 0x70) >> 4;  if (b < 0x80) return toNum(l, h, s);
     b = buf[p.pos++]; h |= (b & 0x7f) << 3;  if (b < 0x80) return toNum(l, h, s);
@@ -1338,21 +1392,21 @@ function readVarintRemainder(l, s, p) {
     throw new Error('Expected varint not more than 10 bytes');
 }
 
-function readPackedEnd(pbf) {
-    return pbf.type === Pbf.Bytes ?
-        pbf.readVarint() + pbf.pos : pbf.pos + 1;
-}
-
+/**
+ * @param {number} low
+ * @param {number} high
+ * @param {boolean} [isSigned]
+ */
 function toNum(low, high, isSigned) {
-    if (isSigned) {
-        return high * 0x100000000 + (low >>> 0);
-    }
-
-    return ((high >>> 0) * 0x100000000) + (low >>> 0);
+    return isSigned ? high * 0x100000000 + (low >>> 0) : ((high >>> 0) * 0x100000000) + (low >>> 0);
 }
 
+/**
+ * @param {number} val
+ * @param {Pbf} pbf
+ */
 function writeBigVarint(val, pbf) {
-    var low, high;
+    let low, high;
 
     if (val >= 0) {
         low  = (val % 0x100000000) | 0;
@@ -1369,7 +1423,7 @@ function writeBigVarint(val, pbf) {
         }
     }
 
-    if (val >= 0x10000000000000000 || val < -0x10000000000000000) {
+    if (val >= 0x10000000000000000 || val < -18446744073709552e3) {
         throw new Error('Given varint doesn\'t fit into 10 bytes');
     }
 
@@ -1379,6 +1433,11 @@ function writeBigVarint(val, pbf) {
     writeBigVarintHigh(high, pbf);
 }
 
+/**
+ * @param {number} high
+ * @param {number} low
+ * @param {Pbf} pbf
+ */
 function writeBigVarintLow(low, high, pbf) {
     pbf.buf[pbf.pos++] = low & 0x7f | 0x80; low >>>= 7;
     pbf.buf[pbf.pos++] = low & 0x7f | 0x80; low >>>= 7;
@@ -1387,8 +1446,12 @@ function writeBigVarintLow(low, high, pbf) {
     pbf.buf[pbf.pos]   = low & 0x7f;
 }
 
+/**
+ * @param {number} high
+ * @param {Pbf} pbf
+ */
 function writeBigVarintHigh(high, pbf) {
-    var lsb = (high & 0x07) << 4;
+    const lsb = (high & 0x07) << 4;
 
     pbf.buf[pbf.pos++] |= lsb         | ((high >>>= 3) ? 0x80 : 0); if (!high) return;
     pbf.buf[pbf.pos++]  = high & 0x7f | ((high >>>= 7) ? 0x80 : 0); if (!high) return;
@@ -1398,65 +1461,108 @@ function writeBigVarintHigh(high, pbf) {
     pbf.buf[pbf.pos++]  = high & 0x7f;
 }
 
+/**
+ * @param {number} startPos
+ * @param {number} len
+ * @param {Pbf} pbf
+ */
 function makeRoomForExtraLength(startPos, len, pbf) {
-    var extraLen =
+    const extraLen =
         len <= 0x3fff ? 1 :
         len <= 0x1fffff ? 2 :
         len <= 0xfffffff ? 3 : Math.floor(Math.log(len) / (Math.LN2 * 7));
 
     // if 1 byte isn't enough for encoding message length, shift the data to the right
     pbf.realloc(extraLen);
-    for (var i = pbf.pos - 1; i >= startPos; i--) pbf.buf[i + extraLen] = pbf.buf[i];
+    for (let i = pbf.pos - 1; i >= startPos; i--) pbf.buf[i + extraLen] = pbf.buf[i];
 }
 
-function writePackedVarint(arr, pbf)   { for (var i = 0; i < arr.length; i++) pbf.writeVarint(arr[i]);   }
-function writePackedSVarint(arr, pbf)  { for (var i = 0; i < arr.length; i++) pbf.writeSVarint(arr[i]);  }
-function writePackedFloat(arr, pbf)    { for (var i = 0; i < arr.length; i++) pbf.writeFloat(arr[i]);    }
-function writePackedDouble(arr, pbf)   { for (var i = 0; i < arr.length; i++) pbf.writeDouble(arr[i]);   }
-function writePackedBoolean(arr, pbf)  { for (var i = 0; i < arr.length; i++) pbf.writeBoolean(arr[i]);  }
-function writePackedFixed32(arr, pbf)  { for (var i = 0; i < arr.length; i++) pbf.writeFixed32(arr[i]);  }
-function writePackedSFixed32(arr, pbf) { for (var i = 0; i < arr.length; i++) pbf.writeSFixed32(arr[i]); }
-function writePackedFixed64(arr, pbf)  { for (var i = 0; i < arr.length; i++) pbf.writeFixed64(arr[i]);  }
-function writePackedSFixed64(arr, pbf) { for (var i = 0; i < arr.length; i++) pbf.writeSFixed64(arr[i]); }
+/**
+ * @param {number[]} arr
+ * @param {Pbf} pbf
+ */
+function writePackedVarint(arr, pbf) {
+    for (let i = 0; i < arr.length; i++) pbf.writeVarint(arr[i]);
+}
+/**
+ * @param {number[]} arr
+ * @param {Pbf} pbf
+ */
+function writePackedSVarint(arr, pbf) {
+    for (let i = 0; i < arr.length; i++) pbf.writeSVarint(arr[i]);
+}
+/**
+ * @param {number[]} arr
+ * @param {Pbf} pbf
+ */
+function writePackedFloat(arr, pbf) {
+    for (let i = 0; i < arr.length; i++) pbf.writeFloat(arr[i]);
+}
+/**
+ * @param {number[]} arr
+ * @param {Pbf} pbf
+ */
+function writePackedDouble(arr, pbf) {
+    for (let i = 0; i < arr.length; i++) pbf.writeDouble(arr[i]);
+}
+/**
+ * @param {boolean[]} arr
+ * @param {Pbf} pbf
+ */
+function writePackedBoolean(arr, pbf) {
+    for (let i = 0; i < arr.length; i++) pbf.writeBoolean(arr[i]);
+}
+/**
+ * @param {number[]} arr
+ * @param {Pbf} pbf
+ */
+function writePackedFixed32(arr, pbf) {
+    for (let i = 0; i < arr.length; i++) pbf.writeFixed32(arr[i]);
+}
+/**
+ * @param {number[]} arr
+ * @param {Pbf} pbf
+ */
+function writePackedSFixed32(arr, pbf) {
+    for (let i = 0; i < arr.length; i++) pbf.writeSFixed32(arr[i]);
+}
+/**
+ * @param {number[]} arr
+ * @param {Pbf} pbf
+ */
+function writePackedFixed64(arr, pbf) {
+    for (let i = 0; i < arr.length; i++) pbf.writeFixed64(arr[i]);
+}
+/**
+ * @param {number[]} arr
+ * @param {Pbf} pbf
+ */
+function writePackedSFixed64(arr, pbf) {
+    for (let i = 0; i < arr.length; i++) pbf.writeSFixed64(arr[i]);
+}
 
 // Buffer code below from https://github.com/feross/buffer, MIT-licensed
 
-function readUInt32(buf, pos) {
-    return ((buf[pos]) |
-        (buf[pos + 1] << 8) |
-        (buf[pos + 2] << 16)) +
-        (buf[pos + 3] * 0x1000000);
-}
-
-function writeInt32(buf, val, pos) {
-    buf[pos] = val;
-    buf[pos + 1] = (val >>> 8);
-    buf[pos + 2] = (val >>> 16);
-    buf[pos + 3] = (val >>> 24);
-}
-
-function readInt32(buf, pos) {
-    return ((buf[pos]) |
-        (buf[pos + 1] << 8) |
-        (buf[pos + 2] << 16)) +
-        (buf[pos + 3] << 24);
-}
-
+/**
+ * @param {Uint8Array} buf
+ * @param {number} pos
+ * @param {number} end
+ */
 function readUtf8(buf, pos, end) {
-    var str = '';
-    var i = pos;
+    let str = '';
+    let i = pos;
 
     while (i < end) {
-        var b0 = buf[i];
-        var c = null; // codepoint
-        var bytesPerSequence =
+        const b0 = buf[i];
+        let c = null; // codepoint
+        let bytesPerSequence =
             b0 > 0xEF ? 4 :
             b0 > 0xDF ? 3 :
             b0 > 0xBF ? 2 : 1;
 
         if (i + bytesPerSequence > end) break;
 
-        var b1, b2, b3;
+        let b1, b2, b3;
 
         if (bytesPerSequence === 1) {
             if (b0 < 0x80) {
@@ -1508,12 +1614,13 @@ function readUtf8(buf, pos, end) {
     return str;
 }
 
-function readUtf8TextDecoder(buf, pos, end) {
-    return utf8TextDecoder.decode(buf.subarray(pos, end));
-}
-
+/**
+ * @param {Uint8Array} buf
+ * @param {string} str
+ * @param {number} pos
+ */
 function writeUtf8(buf, str, pos) {
-    for (var i = 0, c, lead; i < str.length; i++) {
+    for (let i = 0, c, lead; i < str.length; i++) {
         c = str.charCodeAt(i); // code point
 
         if (c > 0xD7FF && c < 0xE000) {
@@ -1565,8 +1672,6 @@ function writeUtf8(buf, str, pos) {
     return pos;
 }
 
-var Pbf$1 = /*@__PURE__*/getDefaultExportFromCjs(pbf);
-
 /*
 Adapted from vt-pbf https://github.com/mapbox/vt-pbf
 
@@ -1603,7 +1708,7 @@ var GeomType;
  * Enodes and serializes a mapbox vector tile as an array of bytes.
  */
 function encodeVectorTile(tile) {
-    const pbf = new Pbf$1();
+    const pbf = new Pbf();
     for (const id in tile.layers) {
         const layer = tile.layers[id];
         if (!layer.extent) {
@@ -1737,136 +1842,6 @@ function writeValue(value, pbf) {
     }
 }
 
-/**
- * Caches, decodes, and processes raster tiles in the current thread.
- */
-class LocalDemManager {
-    constructor(demUrlPattern, cacheSize, encoding, maxzoom, timeoutMs) {
-        this.loaded = Promise.resolve();
-        this.decodeImage = defaultDecoder;
-        this.fetchAndParseTile = (z, x, y, abortController, timer) => {
-            const self = this;
-            const url = this.demUrlPattern
-                .replace("{z}", z.toString())
-                .replace("{x}", x.toString())
-                .replace("{y}", y.toString());
-            timer === null || timer === void 0 ? void 0 : timer.useTile(url);
-            return this.parsedCache.get(url, (_, childAbortController) => __awaiter(this, void 0, void 0, function* () {
-                const response = yield self.fetchTile(z, x, y, childAbortController, timer);
-                if (isAborted(childAbortController))
-                    throw new Error("canceled");
-                const promise = self.decodeImage(response.data, self.encoding, childAbortController);
-                const mark = timer === null || timer === void 0 ? void 0 : timer.marker("decode");
-                const result = yield promise;
-                mark === null || mark === void 0 ? void 0 : mark();
-                return result;
-            }), abortController);
-        };
-        this.tileCache = new AsyncCache(cacheSize);
-        this.parsedCache = new AsyncCache(cacheSize);
-        this.contourCache = new AsyncCache(cacheSize);
-        this.timeoutMs = timeoutMs;
-        this.demUrlPattern = demUrlPattern;
-        this.encoding = encoding;
-        this.maxzoom = maxzoom;
-    }
-    fetchTile(z, x, y, parentAbortController, timer) {
-        const url = this.demUrlPattern
-            .replace("{z}", z.toString())
-            .replace("{x}", x.toString())
-            .replace("{y}", y.toString());
-        timer === null || timer === void 0 ? void 0 : timer.useTile(url);
-        return this.tileCache.get(url, (_, childAbortController) => {
-            const options = {
-                signal: childAbortController.signal,
-            };
-            timer === null || timer === void 0 ? void 0 : timer.fetchTile(url);
-            const mark = timer === null || timer === void 0 ? void 0 : timer.marker("fetch");
-            return withTimeout(this.timeoutMs, fetch(url, options).then((response) => __awaiter(this, void 0, void 0, function* () {
-                mark === null || mark === void 0 ? void 0 : mark();
-                if (!response.ok) {
-                    throw new Error(`Bad response: ${response.status} for ${url}`);
-                }
-                return {
-                    data: yield response.blob(),
-                    expires: response.headers.get("expires") || undefined,
-                    cacheControl: response.headers.get("cache-control") || undefined,
-                };
-            })), childAbortController);
-        }, parentAbortController);
-    }
-    fetchDem(z, x, y, options, abortController, timer) {
-        return __awaiter(this, void 0, void 0, function* () {
-            const zoom = Math.min(z - (options.overzoom || 0), this.maxzoom);
-            const subZ = z - zoom;
-            const div = 1 << subZ;
-            const newX = Math.floor(x / div);
-            const newY = Math.floor(y / div);
-            const tile = yield this.fetchAndParseTile(zoom, newX, newY, abortController, timer);
-            return HeightTile.fromRawDem(tile).split(subZ, x % div, y % div);
-        });
-    }
-    fetchContourTile(z, x, y, options, parentAbortController, timer) {
-        const { levels, multiplier = 1, buffer = 1, extent = 4096, contourLayer = "contours", elevationKey = "ele", levelKey = "level", subsampleBelow = 100, } = options;
-        // no levels means less than min zoom with levels specified
-        if (!levels || levels.length === 0) {
-            return Promise.resolve({ arrayBuffer: new ArrayBuffer(0) });
-        }
-        const key = [z, x, y, encodeIndividualOptions(options)].join("/");
-        return this.contourCache.get(key, (_, childAbortController) => __awaiter(this, void 0, void 0, function* () {
-            const max = 1 << z;
-            const neighborPromises = [];
-            for (let iy = y - 1; iy <= y + 1; iy++) {
-                for (let ix = x - 1; ix <= x + 1; ix++) {
-                    neighborPromises.push(iy < 0 || iy >= max
-                        ? undefined
-                        : this.fetchDem(z, (ix + max) % max, iy, options, childAbortController, timer));
-                }
-            }
-            const neighbors = yield Promise.all(neighborPromises);
-            let virtualTile = HeightTile.combineNeighbors(neighbors);
-            if (!virtualTile || isAborted(childAbortController)) {
-                return { arrayBuffer: new Uint8Array().buffer };
-            }
-            const mark = timer === null || timer === void 0 ? void 0 : timer.marker("isoline");
-            if (virtualTile.width >= subsampleBelow) {
-                virtualTile = virtualTile.materialize(2);
-            }
-            else {
-                while (virtualTile.width < subsampleBelow) {
-                    virtualTile = virtualTile.subsamplePixelCenters(2).materialize(2);
-                }
-            }
-            virtualTile = virtualTile
-                .averagePixelCentersToGrid()
-                .scaleElevation(multiplier)
-                .materialize(1);
-            const isolines = generateIsolines(levels[0], virtualTile, extent, buffer);
-            mark === null || mark === void 0 ? void 0 : mark();
-            const result = encodeVectorTile({
-                extent,
-                layers: {
-                    [contourLayer]: {
-                        features: Object.entries(isolines).map(([eleString, geom]) => {
-                            const ele = Number(eleString);
-                            return {
-                                type: GeomType.LINESTRING,
-                                geometry: geom,
-                                properties: {
-                                    [elevationKey]: ele,
-                                    [levelKey]: Math.max(...levels.map((l, i) => (ele % l === 0 ? i : 0))),
-                                },
-                            };
-                        }),
-                    },
-                },
-            });
-            mark === null || mark === void 0 ? void 0 : mark();
-            return { arrayBuffer: result.buffer };
-        }), parentAbortController);
-    }
-}
-
 const perf = typeof performance !== "undefined" ? performance : undefined;
 const timeOrigin = perf
     ? perf.timeOrigin || new Date().getTime() - perf.now()
@@ -1971,6 +1946,150 @@ function applyOffset(obj, offset) {
     return result;
 }
 
+const defaultGetTile = (url, abortController) => __awaiter(void 0, void 0, void 0, function* () {
+    const options = {
+        signal: abortController.signal,
+    };
+    const response = yield fetch(url, options);
+    if (!response.ok) {
+        throw new Error(`Bad response: ${response.status} for ${url}`);
+    }
+    return {
+        data: yield response.blob(),
+        expires: response.headers.get("expires") || undefined,
+        cacheControl: response.headers.get("cache-control") || undefined,
+    };
+});
+/**
+ * Caches, decodes, and processes raster tiles in the current thread.
+ */
+class LocalDemManager {
+    constructor(options) {
+        this.loaded = Promise.resolve();
+        this.fetchAndParseTile = (z, x, y, abortController, timer) => {
+            // eslint-disable-next-line @typescript-eslint/no-this-alias
+            const self = this;
+            const url = this.demUrlPattern
+                .replace("{z}", z.toString())
+                .replace("{x}", x.toString())
+                .replace("{y}", y.toString());
+            timer === null || timer === void 0 ? void 0 : timer.useTile(url);
+            return this.parsedCache.get(url, (_, childAbortController) => __awaiter(this, void 0, void 0, function* () {
+                const response = yield self.fetchTile(z, x, y, childAbortController, timer);
+                if (isAborted(childAbortController))
+                    throw new Error("canceled");
+                const promise = self.decodeImage(response.data, self.encoding, childAbortController);
+                const mark = timer === null || timer === void 0 ? void 0 : timer.marker("decode");
+                const result = yield promise;
+                mark === null || mark === void 0 ? void 0 : mark();
+                return result;
+            }), abortController);
+        };
+        this.tileCache = new AsyncCache(options.cacheSize);
+        this.parsedCache = new AsyncCache(options.cacheSize);
+        this.contourCache = new AsyncCache(options.cacheSize);
+        this.timeoutMs = options.timeoutMs;
+        this.demUrlPattern = options.demUrlPattern;
+        this.encoding = options.encoding;
+        this.maxzoom = options.maxzoom;
+        this.decodeImage = options.decodeImage || defaultDecoder;
+        this.getTile = options.getTile || defaultGetTile;
+    }
+    fetchTile(z, x, y, parentAbortController, timer) {
+        const url = this.demUrlPattern
+            .replace("{z}", z.toString())
+            .replace("{x}", x.toString())
+            .replace("{y}", y.toString());
+        timer === null || timer === void 0 ? void 0 : timer.useTile(url);
+        return this.tileCache.get(url, (_, childAbortController) => {
+            timer === null || timer === void 0 ? void 0 : timer.fetchTile(url);
+            const mark = timer === null || timer === void 0 ? void 0 : timer.marker("fetch");
+            return withTimeout(this.timeoutMs, this.getTile(url, childAbortController).finally(() => mark === null || mark === void 0 ? void 0 : mark()), childAbortController);
+        }, parentAbortController);
+    }
+    fetchDem(z, x, y, options, abortController, timer) {
+        return __awaiter(this, void 0, void 0, function* () {
+            const zoom = Math.min(z - (options.overzoom || 0), this.maxzoom);
+            const subZ = z - zoom;
+            const div = 1 << subZ;
+            const newX = Math.floor(x / div);
+            const newY = Math.floor(y / div);
+            const tile = yield this.fetchAndParseTile(zoom, newX, newY, abortController, timer);
+            return HeightTile.fromRawDem(tile).split(subZ, x % div, y % div);
+        });
+    }
+    fetchContourTile(z, x, y, options, parentAbortController, timer) {
+        const { levels, multiplier = 1, buffer = 1, extent = 4096, contourLayer = "contours", elevationKey = "ele", levelKey = "level", subsampleBelow = 100, } = options;
+        // no levels means less than min zoom with levels specified
+        if (!levels || levels.length === 0) {
+            return Promise.resolve({ arrayBuffer: new ArrayBuffer(0) });
+        }
+        const key = [z, x, y, encodeIndividualOptions(options)].join("/");
+        return this.contourCache.get(key, (_, childAbortController) => __awaiter(this, void 0, void 0, function* () {
+            const max = 1 << z;
+            const neighborPromises = [];
+            for (let iy = y - 1; iy <= y + 1; iy++) {
+                for (let ix = x - 1; ix <= x + 1; ix++) {
+                    if (iy < 0 || iy >= max) {
+                        neighborPromises.push(undefined);
+                    }
+                    else {
+                        const isCenterTile = ix === x && iy === y;
+                        neighborPromises.push(this.fetchDem(z, (ix + max) % max, iy, options, childAbortController, timer).catch((error) => {
+                            // 中央タイルの404エラーの場合は再throw（描画中止）
+                            if (isCenterTile) {
+                                throw error;
+                            }
+                            // 周辺タイルの404エラーの場合はundefinedを返す（描画継続）
+                            return undefined;
+                        }));
+                    }
+                }
+            }
+            const neighbors = yield Promise.all(neighborPromises);
+            let virtualTile = HeightTile.combineNeighbors(neighbors);
+            if (!virtualTile || isAborted(childAbortController)) {
+                return { arrayBuffer: new Uint8Array().buffer };
+            }
+            const mark = timer === null || timer === void 0 ? void 0 : timer.marker("isoline");
+            if (virtualTile.width >= subsampleBelow) {
+                virtualTile = virtualTile.materialize(2);
+            }
+            else {
+                while (virtualTile.width < subsampleBelow) {
+                    virtualTile = virtualTile.subsamplePixelCenters(2).materialize(2);
+                }
+            }
+            virtualTile = virtualTile
+                .averagePixelCentersToGrid()
+                .scaleElevation(multiplier)
+                .materialize(1);
+            const isolines = generateIsolines(levels[0], virtualTile, extent, buffer);
+            mark === null || mark === void 0 ? void 0 : mark();
+            const result = encodeVectorTile({
+                extent,
+                layers: {
+                    [contourLayer]: {
+                        features: Object.entries(isolines).map(([eleString, geom]) => {
+                            const ele = Number(eleString);
+                            return {
+                                type: GeomType.LINESTRING,
+                                geometry: geom,
+                                properties: {
+                                    [elevationKey]: ele,
+                                    [levelKey]: Math.max(...levels.map((l, i) => (ele % l === 0 ? i : 0))),
+                                },
+                            };
+                        }),
+                    },
+                },
+            });
+            mark === null || mark === void 0 ? void 0 : mark();
+            return { arrayBuffer: result.buffer };
+        }), parentAbortController);
+    }
+}
+
 let id = 0;
 /**
  * Utility for sending messages to a remote instance of `<T>` running in a web worker
@@ -1998,6 +2117,7 @@ class Actor {
             }
             else if (message.type === "request") {
                 const timer = new Timer("worker");
+                // eslint-disable-next-line @typescript-eslint/no-unsafe-function-type
                 const handler = dispatcher[message.name];
                 const abortController = new AbortController();
                 const request = handler.apply(handler, [
@@ -2061,8 +2181,8 @@ exports.L = LocalDemManager;
 exports.T = Timer;
 exports._ = __awaiter;
 exports.a = decodeOptions;
-exports.b = generateIsolines;
-exports.c = decodeParsedImage;
+exports.b = decodeParsedImage;
+exports.c = generateIsolines;
 exports.d = defaultDecoder;
 exports.e = encodeOptions;
 exports.f = prepareContourTile;

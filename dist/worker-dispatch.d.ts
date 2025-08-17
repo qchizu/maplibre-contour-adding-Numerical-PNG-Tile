@@ -1,6 +1,6 @@
-import { LocalDemManager } from "./dem-manager";
+import { LocalDemManager } from "./local-dem-manager";
 import { Timer } from "./performance";
-import { ContourTile, FetchResponse, IndividualContourTileOptions, InitMessage, TransferrableDemTile } from "./types";
+import type { ContourTile, FetchResponse, IndividualContourTileOptions, InitMessage, TransferrableDemTile } from "./types";
 /**
  * Receives messages from an actor in the web worker.
  */
